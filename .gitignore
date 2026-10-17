@@ -1,0 +1,17 @@
+node_modules/
+.tools/
+.local*/
+artifacts/
+logs/
+server/build/
+client/.godot/
+client/assets/fonts/TemplateCJK.otf
+*.pck
+*.wasm
+*.wasm.br
+*.exe
+*.private.*
+*.pem
+.env
+.env.*
+!.env.example

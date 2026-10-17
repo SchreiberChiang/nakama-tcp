@@ -1,0 +1,29 @@
+name: template-local
+logger:
+  level: INFO
+runtime:
+  js_entrypoint: index.js
+socket:
+  address: 127.0.0.1
+  port: 7350
+  server_key: defaultkey
+  max_message_size_bytes: 4096
+  ping_period_ms: 5000
+  pong_wait_ms: 10000
+  outgoing_queue_size: 128
+session:
+  encryption_key: local-only-dev-session-key-32-chars
+  refresh_encryption_key: local-only-dev-refresh-key-32-chars
+  token_expiry_sec: 7200
+  refresh_token_expiry_sec: 86400
+  single_socket: true
+  single_session: true
+  single_match: true
+console:
+  address: 127.0.0.1
+  port: 7351
+  username: localdev
+  password: local-only-dev
+  signing_key: local-only-dev-console-key
+match:
+  input_queue_size: 256

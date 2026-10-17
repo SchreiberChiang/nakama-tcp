@@ -1,0 +1,69 @@
+# Godot + Nakama 通用联机底座
+
+不安装任何具体游戏的 Godot 4.7.2 客户端和 Nakama 3.41.0 权威房间服务端。默认大厅显示“尚未安装玩法”；登录页、大厅、房间、结算页均是普通 2D 控件，没有背景 3D、预览、音乐或隐藏玩法实例。
+
+保留设备/邮箱认证接口、会话、WebSocket、玩法目录、大厅、建房/加入、容量、成员列表、准备/开始、房主转移、退出/断线清理、服务端结算与留房再来一局。内存聊天控制器与服务端策略保留，当前 UI 不提供聊天面板。客户端不决定分数或赢家，安全校验仍在服务端。
+
+## 安装与运行
+
+需要 Node **24**、Godot **4.7.2**、Git；本地后端支持 Windows/Linux x64，PostgreSQL 在 Linux 必须用普通用户运行。其他平台可自行提供官方 Nakama 可执行文件。版本与许可见 [THIRD_PARTY](docs/THIRD_PARTY.md)。
+
+```powershell
+$env:SCARF_ANALYTICS = 'false'
+$env:NAKAMA_TELEMETRY = '0'
+npm.cmd ci --ignore-scripts
+node scripts/restore-source-assets.mjs
+node scripts/bootstrap.mjs
+npm.cmd run build
+$env:GODOT = 'C:/your/path/Godot_4.7.2.exe'
+& $env:GODOT --headless --editor --path client --import
+node scripts/run-with-server.mjs $env:GODOT --path client -- --profile=local-one
+```
+
+`bootstrap` **会下载**官方固定版本 Nakama，核对 SHA256 后解压到本仓库 `.tools/`，不安装系统服务。已有 Nakama 时可跳过 bootstrap，设置 `$env:NAKAMA_BIN='C:/your/path/nakama.exe'`。字体从仓库中的压缩源还原，不下载。Linux 使用 `npm` 和 `export GODOT=/your/path/godot` 等相同脚本。
+
+启动器仅绑定 **127.0.0.1**；端口 `54329`、`7348–7351` 必须可用，否则拒绝启动，不接管旧进程、不删数据库锁。数据库默认 `.local/postgres/`，可用 `NAKAMA_DATA_DIR` 指定新的隔离目录。退出客户端后只清理本次子进程，数据库保留。若需要同时启动第二个客户端，保留第一个启动器，在另一个终端运行：
+
+```powershell
+& $env:GODOT --path client -- --profile=local-two
+```
+
+默认连接 loopback，`defaultkey` 与 `server/dev.yml` 中密码都是**公开的本地开发值**，不用于生产。远端须显式设置域名、端口、server key，并启用 TLS；TLS 证书验证保持开启。登录页面可输入连接参数，当前不保存 server key；密码、令牌不写本地配置、不写日志。设备 ID 和昵称保存在 Godot 的 `user://template-<profile>.cfg`，不要上传该目录。Web/微信不能直连电脑的 loopback，须另行提供已授权的 HTTPS/WSS 后端；本模板不包含云服配置或部署脚本。
+
+## 目录与入口
+
+| 目录 | 用途 |
+|---|---|
+| `client/Main.tscn`、`client/ui/main.gd` | 唯一玩家入口和普通 2D UI |
+| `client/core/session.gd` | 唯一 Nakama 网络边界，含连接代际、房间代际、清理与安全错误提示 |
+| `client/core/game_module.gd`、`module_registry.gd` | 客户端玩法接口和空注册表 |
+| `client/addons/` | 官方 SDK 3.4.0、保留的补丁、固定版本与许可 |
+| `server/src/main.ts`、`chat.ts`、`types.ts` | 权威房间生命周期、聊天策略、模块合同 |
+| `server/src/registry.ts` | 默认空服务端玩法注册表 |
+| `tests/fixtures/`、`client/tests/` | 隔离的文字测试模块和验证程序，生产注册/导出不包含它们 |
+| `platform/wechat/` | 可选的 HTTP 兼容补丁及平台边界说明，不自动装入桌面/浏览器 |
+| `scripts/` | 构建、自有本地服务、测试、导出依赖核查 |
+| `docs/` | 接入步骤、协议、验证与来源 |
+
+## 新玩法接入
+
+按 [ADDING_GAME](docs/ADDING_GAME.md) 同时添加服务端模块和客户端视图，并在两端显式注册。共享 UI 不根据玩法 ID 判断车辆、地图、镜头或特殊参数。没有注册玩法时，登录/连接照常工作；建房必须有真实模块，底座不会用假玩法或空规则创建房间。
+
+房间核心复用原有 RPC、op code、`seq`、`round_id`、会话身份和容量校验，见 [PROTOCOL](docs/PROTOCOL.md)。模块负责解释自己的选项、输入和结果。客户端视图仅在 `playing` 阶段实例化，离开/结算时调用 `release()` 后释放。
+
+## 验证与导出
+
+```powershell
+node scripts/test.mjs
+node scripts/export.mjs
+```
+
+`test.mjs` 构建空注册生产后端和独立测试后端，先跑 SDK 回归，再为两组后端分别启动两台真实 Godot 客户端。测试数据库、日志和 IPC 只写 `.local/`，不提交。测试运行有超时和错误日志门禁。设置 `$env:TEST_GUI='1'` 可改为窗口模式并在本地保存登录/大厅/房间/结算截图。
+
+`export.mjs` 生成 `artifacts/template.pck`，在空目录加载该 **实际 PCK** 并运行登录页，再检查文件清单和场景树。导出排除 `client/tests/`；服务端普通构建也不编译测试模块。PCK 和日志均不入仓库。PCK 是游戏数据包，**不含可独立运行的 Godot 平台可执行文件/WASM**；Web/桌面完整应用导出还需要对应官方 export templates。
+
+已验证与未测范围见 [VALIDATION](docs/VALIDATION.md)。微信旧项目的成功证据不能替代本模板的手机验证，本次未上传微信、未部署腾讯云、未测手机或公网多人。已有微信适配可作为外部导出层复用，详见 [platform/wechat/README.md](platform/wechat/README.md)。
+
+## 许可与来源
+
+项目通用代码采用 MIT，保留 [LICENSE](LICENSE) 和第三方各自许可。本模板从原项目通用网络代码整理，独立仓库只带新的初始提交，不附原游戏历史、资源、配置、构建或运行日志。来源版本及官方 SDK 补丁见 [THIRD_PARTY](docs/THIRD_PARTY.md)。

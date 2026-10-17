@@ -1,0 +1,90 @@
+diff --git a/client/addons/com.heroiclabs.nakama/socket/NakamaSocket.gd b/client/addons/com.heroiclabs.nakama/socket/NakamaSocket.gd
+index 73f580b..4850fb0 100644
+--- a/client/addons/com.heroiclabs.nakama/socket/NakamaSocket.gd
++++ b/client/addons/com.heroiclabs.nakama/socket/NakamaSocket.gd
+@@ -116,7 +116,8 @@ class AsyncRequest:
+ 				msg = err.get("message", "")
+ 				code = err.get("code", -1)
+ 			if logger:
+-				logger.warning("Error response from server: %s" % err)
++				var log_code := int(code) if typeof(code) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(code)) and float(code) == floor(float(code)) and float(code) >= -1 and float(code) <= 65535 else -1
++				logger.warning("Error response from server (code %d)" % log_code)
+ 			return type.new(NakamaException.new(msg, code))
+ 		# Simple ack response
+ 		elif type == NakamaAsyncResult:
+@@ -194,7 +195,7 @@ func _received(p_bytes : PackedByteArray):
+ 	var json_str = p_bytes.get_string_from_utf8()
+ 	var json_error := json.parse(json_str)
+ 	if json_error != OK or typeof(json.get_data()) != TYPE_DICTIONARY:
+-		logger.error("Unable to parse response: %s" % json_str)
++		logger.error("Unable to parse realtime response")
+ 		return
+ 	var dict : Dictionary = json.get_data()
+ 	var cid = dict.get("cid")
+@@ -202,7 +203,7 @@ func _received(p_bytes : PackedByteArray):
+ 		if _requests.has(cid):
+ 			_resume_request(cid, dict)
+ 		else:
+-			logger.error("Invalid call id received %s" % dict)
++			logger.error("Invalid realtime call id received")
+ 	else:
+ 		if dict.has("error"):
+ 			var res = NakamaRTAPI.Error.create(NakamaRTAPI, dict["error"])
+@@ -257,22 +258,22 @@ func _received(p_bytes : PackedByteArray):
+ 			var res = NakamaRTAPI.PartyPresenceEvent.create(NakamaRTAPI, dict["party_presence_event"])
+ 			emit_signal("received_party_presence", res)
+ 		else:
+-			logger.warning("Unhandled response: %s" % dict)
++			logger.warning("Unhandled realtime response")
+ 
+ func _resume_request(p_id : String, p_data):
+ 	if _requests.has(p_id):
+-		logger.debug("Resuming request: %s: %s" % [p_id, p_data])
++		logger.debug("Resuming realtime request")
+ 		# Drop ownership before completion callbacks can close/cancel the socket.
+ 		var request = _requests[p_id]
+ 		_requests.erase(p_id)
+ 		request.resume(p_data, logger)
+ 	else:
+-		logger.warning("Trying to resume missing request: %s: %s" % [p_id, p_data])
++		logger.warning("Trying to resume missing realtime request")
+ 
+ func _cancel_request(p_id : String):
+ 	# A queued cancellation may run after socket-close cleanup has completed it.
+ 	if _requests.has(p_id):
+-		logger.debug("Cancelling request: %s" % [p_id])
++		logger.debug("Cancelling realtime request")
+ 		_resume_request(p_id, NakamaException.new("Request cancelled."))
+ 
+ func _complete_no_response_request(p_id : String):
+@@ -287,7 +288,7 @@ func _clear_requests():
+ 		_cancel_request(id)
+ 
+ func _send_async(p_message, p_parse_type = NakamaAsyncResult, p_ns = NakamaRTAPI, p_msg_key = null, p_result_key = null) -> AsyncRequest:
+-	logger.debug("Sending async request: %s" % p_message)
++	logger.debug("Sending async realtime request")
+ 	# For messages coming from the API which does not have a key defined, so we can override it
+ 	var msg = p_msg_key
+ 	# For regular RT messages
+@@ -326,7 +327,7 @@ func close():
+ # Returns a task to represent the asynchronous operation.
+ func connect_async(p_session : NakamaSession, p_appear_online : bool = false, p_connect_timeout : int = 3):
+ 	var uri = "%s/ws?lang=en&status=%s&token=%s" % [_base_uri, str(p_appear_online).to_lower(), p_session.token]
+-	logger.debug("Connecting to host: %s" % uri)
++	logger.debug("Connecting realtime socket")
+ 	_conn = AsyncConnection.new()
+ 	_adapter.connect_to_host(uri, p_connect_timeout)
+ 	return await _conn.completed
+diff --git a/client/addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd b/client/addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd
+index 6a0ebe6..77c0b29 100644
+--- a/client/addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd
++++ b/client/addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd
+@@ -42,7 +42,7 @@ func connect_to_host(p_uri : String, p_timeout : int):
+ 	_start = Time.get_unix_time_from_system()
+ 	var err = _ws.connect_to_url(p_uri)
+ 	if err != OK:
+-		logger.debug("Error connecting to host %s" % p_uri)
++		logger.debug("Error connecting realtime socket")
+ 		call_deferred("emit_signal", "received_error", err)
+ 		return
+ 	_ws_last_state = WebSocketPeer.STATE_CLOSED

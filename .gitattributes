@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.gd text eol=lf
+*.mjs text eol=lf
+*.patch text eol=lf
+*.gz binary

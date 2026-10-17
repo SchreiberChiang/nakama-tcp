@@ -1,0 +1,708 @@
+interface Member extends ChatMember {
+  presence: nkruntime.Presence;
+  name: string;
+  ready: boolean;
+  staying: boolean;
+  seq: number;
+  window: number;
+  inputs: number;
+  controls: number;
+  strikes: number;
+  selection: any;
+}
+interface RoomState extends ChatRoomState {
+  game_id: string;
+  options: any;
+  name: string;
+  host_id: string;
+  capacity: number;
+  host_change: {
+    seq: number;
+    reason: string;
+    previous_host_id: string;
+    host_id: string;
+  };
+  phase: string;
+  members: { [id: string]: Member };
+  // Join order. Nakama hands match state through Go maps between ticks, so
+  // object key order is not stable; arrays keep their order.
+  order: string[];
+  pending: { [id: string]: { sessionId: string; expires: number } };
+  game: any;
+  countdown: number;
+  roundStart: number;
+  emptyTicks: number;
+  tick: number;
+  round_id: number;
+  results: any[];
+  snapshotRate: number;
+  snapshotAccumulator: number;
+}
+// Launch-time snapshot setting, captured independently by each new room.
+function configuredSnapshotRate(ctx: nkruntime.Context): number {
+  var value = ctx.env && ctx.env.GAME_SNAPSHOT_RATE;
+  return value === "10" ? 10 : value === "30" ? 30 : 20;
+}
+function minimumPlayers(game: GameModule): number {
+  return game.minimumPlayers || 2;
+}
+function roomCapacity(game: GameModule, value: any): number {
+  if (value === undefined) return 8;
+  if (
+    !finite(value) ||
+    Math.floor(value) !== value ||
+    value < minimumPlayers(game) ||
+    value > 8
+  )
+    throw Error("Invalid room capacity");
+  return value;
+}
+function transferHost(s: RoomState, next: string, reason: string): void {
+  var previous = s.host_id;
+  s.host_id = next;
+  s.host_change = {
+    seq: s.host_change.seq + 1,
+    reason: reason,
+    previous_host_id: previous,
+    host_id: next,
+  };
+}
+function memberIds(s: RoomState): string[] {
+  return s.order.filter(function (id) {
+    return !!s.members[id];
+  });
+}
+function roomLabel(s: RoomState): string {
+  return JSON.stringify({
+    game_id: s.game_id,
+    options: s.options,
+    name: s.name,
+    phase: s.phase,
+    host_id: s.host_id,
+    capacity: s.capacity,
+    room_flow_version: 1,
+    room_phase_version: ROOM_PHASE_VERSION,
+  });
+}
+function snapshot(s: RoomState): any {
+  var result = GAMES[s.game_id].snapshot(s.game);
+  result.tick = s.tick;
+  result.tick_rate = TICK_RATE;
+  result.snapshot_rate = s.snapshotRate;
+  result.phase = s.phase;
+  result.game_id = s.game_id;
+  result.min_players = minimumPlayers(GAMES[s.game_id]);
+  result.options = s.options;
+  result.host_id = s.host_id;
+  result.capacity = s.capacity;
+  result.room_flow_version = 1;
+  result.room_phase_version = ROOM_PHASE_VERSION;
+  result.room_chat_version = CHAT_VERSION;
+  result.host_change = s.host_change;
+  result.countdown = s.countdown;
+  result.round_id = s.round_id;
+  result.results = s.results;
+  // Clients number and colour players by position: list them in join order.
+  var rank = function (p: any): number {
+    var i = s.order.indexOf(p.user_id);
+    return i < 0 ? s.order.length : i;
+  };
+  result.players = result.players
+    .map(function (p: any, i: number) {
+      return { p: p, i: i };
+    })
+    .sort(function (a: any, b: any) {
+      return rank(a.p) - rank(b.p) || a.i - b.i;
+    })
+    .map(function (e: any) {
+      return e.p;
+    });
+  result.players.forEach(function (p: any) {
+    p.ready = !!s.members[p.user_id] && s.members[p.user_id].ready;
+    p.connected = !!s.members[p.user_id];
+    p.staying = !!s.members[p.user_id] && s.members[p.user_id].staying;
+    // Schema/round/sequence accepted, not a promise the game applied it.
+    p.accepted_input_seq = s.members[p.user_id] ? s.members[p.user_id].seq : -1;
+  });
+  return result;
+}
+function broadcast(d: nkruntime.MatchDispatcher, s: RoomState): void {
+  d.broadcastMessage(10, JSON.stringify(snapshot(s)));
+}
+function parseObject(raw: string): any {
+  var obj: any;
+  try {
+    obj = JSON.parse(raw);
+  } catch (e) {
+    throw Error("Invalid JSON");
+  }
+  if (!obj || typeof obj !== "object" || Array.isArray(obj))
+    throw Error("Expected object");
+  return obj;
+}
+function requireUser(ctx: nkruntime.Context): void {
+  if (!ctx.userId) throw Error("Authentication required");
+}
+var rpcCatalog: nkruntime.RpcFunction = function (ctx, logger, nk, payload) {
+  requireUser(ctx);
+  return JSON.stringify({
+    room_flow_version: 1,
+    room_phase_version: ROOM_PHASE_VERSION,
+    room_capacity: true,
+    chat: chatCapability(),
+    games: Object.keys(GAMES).map(function (id) {
+      var g = GAMES[id];
+      return {
+        id: g.id,
+        title: g.title,
+        description: g.description,
+        choices: g.choices || [],
+        min_players: minimumPlayers(g),
+        max_players: 8,
+      };
+    }),
+  });
+};
+var rpcRoomList: nkruntime.RpcFunction = function (ctx, logger, nk, payload) {
+  requireUser(ctx);
+  var p = parseObject(payload || "{}");
+  if (!exactKeys(p, ["game_id"])) throw Error("Unknown field");
+  if (
+    p.game_id !== undefined &&
+    (typeof p.game_id !== "string" ||
+      !Object.prototype.hasOwnProperty.call(GAMES, p.game_id))
+  )
+    throw Error("Invalid game");
+  var matches = nk.matchList(100, true, null, 0, 8);
+  return JSON.stringify({
+    rooms: matches
+      .filter(function (m) {
+        var label = JSON.parse(m.label || "{}");
+        return (
+          !!GAMES[label.game_id] && (!p.game_id || label.game_id === p.game_id)
+        );
+      })
+      .map(function (m) {
+        return {
+          match_id: m.matchId,
+          label: JSON.parse(m.label || "{}"),
+          size: m.size,
+        };
+      }),
+  });
+};
+// The room core carries immutable module options; only the module interprets them.
+function normalizeRoomOptions(game: GameModule, value: any): any {
+  var options = value === undefined ? {} : value;
+  if (!options || typeof options !== "object" || Array.isArray(options))
+    throw Error("Invalid room options");
+  if (game.normalizeOptions) return game.normalizeOptions(options);
+  if (Object.keys(options).length) throw Error("Unsupported room options");
+  return {};
+}
+var rpcRoomCreate: nkruntime.RpcFunction = function (ctx, logger, nk, payload) {
+  requireUser(ctx);
+  if (payload.length > 256) throw Error("Request too large");
+  var p = parseObject(payload);
+  if (
+    !exactKeys(p, ["game_id", "name", "options", "capacity"]) ||
+    typeof p.game_id !== "string" ||
+    !Object.prototype.hasOwnProperty.call(GAMES, p.game_id)
+  )
+    throw Error("Invalid game");
+  if (
+    typeof p.name !== "string" ||
+    p.name.length < 1 ||
+    p.name.length > 32 ||
+    /[\x00-\x1f]/.test(p.name)
+  )
+    throw Error("Name must be 1–32 printable characters");
+  var options = normalizeRoomOptions(GAMES[p.game_id], p.options);
+  var capacity = roomCapacity(GAMES[p.game_id], p.capacity);
+  // Server-side storage timestamp bounds room creation per account; no client clock trusted.
+  var existing = nk.storageRead([
+    { collection: "framework_rate", key: "create", userId: ctx.userId! },
+  ]);
+  var now = Date.now();
+  if (existing.length && now - Number(existing[0].value.at) < 3000)
+    throw Error("Wait 3 seconds before creating another room");
+  nk.storageWrite([
+    {
+      collection: "framework_rate",
+      key: "create",
+      userId: ctx.userId!,
+      version: existing.length ? existing[0].version : "*",
+      value: { at: now },
+      permissionRead: 0,
+      permissionWrite: 0,
+    },
+  ]);
+  return JSON.stringify({
+    match_id: nk.matchCreate("game_room", {
+      game_id: p.game_id,
+      name: p.name,
+      host_id: ctx.userId,
+      options: options,
+      capacity: capacity,
+    }),
+  });
+};
+var matchInit: nkruntime.MatchInitFunction<RoomState> = function (
+  ctx,
+  logger,
+  nk,
+  p,
+) {
+  var s: RoomState = {
+    game_id: p.game_id,
+    options: normalizeRoomOptions(GAMES[p.game_id], p.options),
+    name: p.name,
+    host_id: p.host_id,
+    capacity: roomCapacity(GAMES[p.game_id], p.capacity),
+    host_change: {
+      seq: 0,
+      reason: "",
+      previous_host_id: "",
+      host_id: p.host_id,
+    },
+    phase: "lobby",
+    members: {},
+    order: [],
+    pending: {},
+    game: GAMES[p.game_id].create(
+      normalizeRoomOptions(GAMES[p.game_id], p.options),
+    ),
+    countdown: 0,
+    roundStart: 0,
+    emptyTicks: 0,
+    tick: 0,
+    round_id: 1,
+    chatSequence: 0,
+    results: [],
+    snapshotRate: configuredSnapshotRate(ctx),
+    snapshotAccumulator: 0,
+  };
+  return { state: s, tickRate: TICK_RATE, label: roomLabel(s) };
+};
+var matchJoinAttempt: nkruntime.MatchJoinAttemptFunction<RoomState> = function (
+  ctx,
+  logger,
+  nk,
+  d,
+  tick,
+  s,
+  p,
+  metadata,
+) {
+  var module = GAMES[s.game_id];
+  var rejection = module.joinRejection
+    ? module.joinRejection(s.game, metadata || {})
+    : "";
+  if (rejection) return { state: s, accept: false, rejectMessage: rejection };
+  // Require the shared protocol version before reserving a seat.
+  if ((metadata || {}).room_phase_version !== String(ROOM_PHASE_VERSION))
+    return {
+      state: s,
+      accept: false,
+      rejectMessage: "客户端版本过旧，请更新后加入",
+    };
+  if (s.phase !== "lobby")
+    return {
+      state: s,
+      accept: false,
+      rejectMessage:
+        s.phase === "results"
+          ? "本局已结束，请等待房主开启下一局后加入"
+          : "比赛已开始，请等待下一局或加入其他房间",
+    };
+  if (memberIds(s).length + Object.keys(s.pending).length >= s.capacity)
+    return { state: s, accept: false, rejectMessage: "房间已满" };
+  if (s.members[p.userId] || s.pending[p.userId])
+    return {
+      state: s,
+      accept: false,
+      rejectMessage: "此账号已在房间中",
+    };
+  s.pending[p.userId] = { sessionId: p.sessionId, expires: tick + 60 };
+  return { state: s, accept: true };
+};
+var matchJoin: nkruntime.MatchJoinFunction<RoomState> = function (
+  ctx,
+  logger,
+  nk,
+  d,
+  tick,
+  s,
+  presences,
+) {
+  presences.forEach(function (p) {
+    delete s.pending[p.userId];
+    var slot = memberIds(s).length;
+    if (slot >= s.capacity || s.members[p.userId]) {
+      d.matchKick([p]);
+      return;
+    }
+    var name = p.username;
+    try {
+      var users = nk.usersGetId([p.userId]);
+      if (users.length && users[0].displayName) name = users[0].displayName;
+    } catch (e) {}
+    name = name.replace(/[\x00-\x1f]/g, "").substr(0, 32);
+    s.members[p.userId] = {
+      presence: p,
+      name: name,
+      ready: false,
+      staying: false,
+      seq: -1,
+      window: Math.floor(tick / TICK_RATE),
+      inputs: 0,
+      controls: 0,
+      strikes: 0,
+      selection: null,
+    };
+    s.order.push(p.userId);
+    GAMES[s.game_id].join(s.game, p.userId, name, slot);
+  });
+  // Reserve the creator role briefly; a faster guest cannot steal initial host.
+  if (!s.host_id) s.host_id = memberIds(s)[0] || "";
+  s.emptyTicks = 0;
+  s.tick = tick;
+  d.matchLabelUpdate(roomLabel(s));
+  broadcast(d, s);
+  return { state: s };
+};
+var matchLeave: nkruntime.MatchLeaveFunction<RoomState> = function (
+  ctx,
+  logger,
+  nk,
+  d,
+  tick,
+  s,
+  presences,
+) {
+  var hostDeparted = false;
+  presences.forEach(function (p) {
+    var m = s.members[p.userId];
+    if (m && m.presence.sessionId === p.sessionId) {
+      if (p.userId === s.host_id) hostDeparted = true;
+      GAMES[s.game_id].leave(
+        s.game,
+        p.userId,
+        s.phase === PHASE_PLAYING || s.phase === "results",
+        tick,
+      );
+      delete s.members[p.userId];
+      s.order = s.order.filter(function (id) {
+        return id !== p.userId;
+      });
+    }
+  });
+  var ids = memberIds(s);
+  if (hostDeparted) transferHost(s, ids[0] || "", "member_left");
+  if (
+    s.phase === "countdown" &&
+    ids.length < minimumPlayers(GAMES[s.game_id])
+  ) {
+    s.phase = "lobby";
+    s.countdown = 0;
+    ids.forEach(function (id) {
+      s.members[id].ready = false;
+    });
+  }
+  s.tick = tick;
+  d.matchLabelUpdate(roomLabel(s));
+  broadcast(d, s);
+  return { state: s };
+};
+function invalid(
+  d: nkruntime.MatchDispatcher,
+  m: Member,
+  reason: string,
+): void {
+  m.strikes++;
+  if (m.strikes === 1)
+    d.broadcastMessage(
+      11,
+      JSON.stringify({
+        error: reason,
+        message:
+          reason === "Only host may start"
+            ? "只有房主可以开始比赛"
+            : reason === "Control rate exceeded"
+              ? "操作过于频繁，请稍后再试"
+              : "操作无效，请更新客户端后重试",
+      }),
+      [m.presence],
+    );
+  if (m.strikes >= 8) d.matchKick([m.presence]);
+}
+function handleMessage(
+  nk: nkruntime.Nakama,
+  d: nkruntime.MatchDispatcher,
+  s: RoomState,
+  tick: number,
+  msg: nkruntime.MatchMessage,
+): void {
+  var m = s.members[msg.sender.userId];
+  if (!m || m.presence.sessionId !== msg.sender.sessionId) return;
+  // Only chat has its own payload/rate budget; gameplay controls retain 256 bytes.
+  if (chatHandleRoomMessage(nk, d, s, tick, msg)) return;
+  var w = Math.floor(tick / TICK_RATE);
+  if (w !== m.window) {
+    m.window = w;
+    m.inputs = 0;
+    m.controls = 0;
+  }
+  if (msg.data.byteLength > 256) {
+    invalid(d, m, "Payload too large");
+    return;
+  }
+  var p: any;
+  try {
+    p = parseObject(nk.binaryToString(msg.data));
+  } catch (e) {
+    invalid(d, m, "Malformed JSON");
+    return;
+  }
+  if (msg.opCode === 1) {
+    if (++m.inputs > 60) {
+      invalid(d, m, "Input rate exceeded");
+      return;
+    }
+    if (
+      !finite(p.seq) ||
+      p.seq < 0 ||
+      p.seq > 2147483647 ||
+      Math.floor(p.seq) !== p.seq ||
+      !finite(p.round_id) ||
+      Math.floor(p.round_id) !== p.round_id ||
+      !GAMES[s.game_id].validateInput(p)
+    ) {
+      invalid(d, m, "Invalid input schema");
+      return;
+    }
+    if (p.round_id !== s.round_id || p.seq <= m.seq) return;
+    m.seq = p.seq;
+    if (s.phase === PHASE_PLAYING)
+      GAMES[s.game_id].input(s.game, msg.sender.userId, p, tick);
+  } else {
+    // Staying in the current room is an idempotent membership acknowledgement,
+    // not an attempt to leave/rejoin or to start a round without host authority.
+    // Ignore already handled clicks before counting control rate: duplicates
+    // cannot turn a normal results button into an accumulated-strike kick.
+    if (msg.opCode === 4) {
+      if (
+        !exactKeys(p, ["round_id"]) ||
+        (p.round_id !== undefined &&
+          (!finite(p.round_id) ||
+            Math.floor(p.round_id) !== p.round_id ||
+            p.round_id < 1))
+      ) {
+        invalid(d, m, "Invalid rematch schema");
+        return;
+      }
+      if (
+        s.phase !== "results" ||
+        (p.round_id !== undefined && p.round_id !== s.round_id)
+      )
+        return;
+      if (m.staying && s.host_id !== msg.sender.userId) return;
+    }
+    if (++m.controls > 6) {
+      invalid(d, m, "Control rate exceeded");
+      return;
+    }
+    if (msg.opCode === 2) {
+      if (
+        !exactKeys(p, ["ready", "round_id"]) ||
+        typeof p.ready !== "boolean" ||
+        (p.round_id !== undefined &&
+          (!finite(p.round_id) ||
+            Math.floor(p.round_id) !== p.round_id ||
+            p.round_id < 1))
+      ) {
+        invalid(d, m, "Invalid ready schema");
+        return;
+      }
+      if (
+        s.phase === "lobby" &&
+        (p.round_id === undefined || p.round_id === s.round_id)
+      )
+        m.ready = p.ready;
+    } else if (msg.opCode === 3) {
+      if (!exactKeys(p, [])) {
+        invalid(d, m, "Invalid start schema");
+        return;
+      }
+      if (s.host_id !== msg.sender.userId) {
+        invalid(d, m, "Only host may start");
+        return;
+      }
+      var ids = memberIds(s);
+      if (
+        s.phase === "lobby" &&
+        ids.length >= minimumPlayers(GAMES[s.game_id]) &&
+        ids.every(function (id) {
+          return s.members[id].ready;
+        })
+      ) {
+        s.phase = "countdown";
+        s.countdown = 3 * TICK_RATE;
+        s.results = [];
+        d.matchLabelUpdate(roomLabel(s));
+      }
+    } else if (msg.opCode === 4) {
+      if (s.host_id !== msg.sender.userId) {
+        m.staying = true;
+        return;
+      }
+      if (s.phase === "results") {
+        s.phase = "lobby";
+        s.round_id++;
+        s.results = [];
+        s.game = GAMES[s.game_id].create(s.options);
+        memberIds(s).forEach(function (id, i) {
+          var mm = s.members[id];
+          mm.ready = false;
+          mm.staying = false;
+          mm.seq = -1;
+          GAMES[s.game_id].join(s.game, id, mm.name, i);
+          if (mm.selection !== null && GAMES[s.game_id].select)
+            GAMES[s.game_id].select!(s.game, id, mm.selection);
+        });
+        d.matchLabelUpdate(roomLabel(s));
+      }
+    } else if (msg.opCode === 5) {
+      var game = GAMES[s.game_id];
+      if (
+        !exactKeys(p, ["round_id", "selection"]) ||
+        !finite(p.round_id) ||
+        Math.floor(p.round_id) !== p.round_id ||
+        !p.selection ||
+        typeof p.selection !== "object" ||
+        Array.isArray(p.selection) ||
+        !game.validateSelection ||
+        !game.select ||
+        !game.validateSelection(p.selection)
+      ) {
+        invalid(d, m, "Invalid player selection");
+        return;
+      }
+      // A member may change only their own module-approved presentation while
+      // in the current lobby. Stale clicks cannot cross the rematch boundary.
+      if (s.phase !== "lobby" || p.round_id !== s.round_id) return;
+      if (game.select(s.game, msg.sender.userId, p.selection)) m.ready = false;
+      m.selection = p.selection;
+    } else invalid(d, m, "Unknown opcode");
+  }
+}
+var matchLoop: nkruntime.MatchLoopFunction<RoomState> = function (
+  ctx,
+  logger,
+  nk,
+  d,
+  tick,
+  s,
+  messages,
+) {
+  s.tick = tick;
+  Object.keys(s.pending).forEach(function (id) {
+    if (s.pending[id].expires < tick) delete s.pending[id];
+  });
+  var ids = memberIds(s);
+  if (!s.members[s.host_id] && ids.length > 0 && tick > 300) {
+    transferHost(s, ids[0], "host_unavailable");
+    d.matchLabelUpdate(roomLabel(s));
+  }
+  if (ids.length === 0) {
+    if (++s.emptyTicks > 300) return null;
+  } else s.emptyTicks = 0;
+  messages.forEach(function (msg) {
+    handleMessage(nk, d, s, tick, msg);
+  });
+  if (s.phase === "countdown" && --s.countdown <= 0) {
+    s.phase = PHASE_PLAYING;
+    s.roundStart = tick;
+    GAMES[s.game_id].start(s.game, tick);
+    d.matchLabelUpdate(roomLabel(s));
+  }
+  if (s.phase === PHASE_PLAYING) {
+    GAMES[s.game_id].step(s.game, tick);
+    if (
+      GAMES[s.game_id].finished(s.game) ||
+      (GAMES[s.game_id].duration > 0 &&
+        tick - s.roundStart > GAMES[s.game_id].duration * TICK_RATE)
+    ) {
+      s.phase = "results";
+      s.results = GAMES[s.game_id].results(s.game, tick);
+      d.matchLabelUpdate(roomLabel(s));
+    }
+  }
+  // Integer accumulation preserves fractional cadence: 20Hz at 30 simulation
+  // ticks per second alternates 1/2-tick gaps without changing physics.
+  s.snapshotAccumulator += s.snapshotRate;
+  if (s.snapshotAccumulator >= TICK_RATE) {
+    s.snapshotAccumulator -= TICK_RATE;
+    broadcast(d, s);
+  }
+  return { state: s };
+};
+var matchTerminate: nkruntime.MatchTerminateFunction<RoomState> = function (
+  ctx,
+  logger,
+  nk,
+  d,
+  tick,
+  s,
+  grace,
+) {
+  d.broadcastMessage(
+    11,
+    JSON.stringify({
+      error: "Server shutting down",
+      message: "服务器正在关闭，当前房间即将结束",
+    }),
+  );
+  return null;
+};
+var matchSignal: nkruntime.MatchSignalFunction<RoomState> = function (
+  ctx,
+  logger,
+  nk,
+  d,
+  tick,
+  s,
+  data,
+) {
+  // Never let an untrusted command escape the match callback: Nakama stops
+  // the entire match on a thrown signal error. Reject at the outer RPC instead.
+  return {
+    state: s,
+    data: JSON.stringify({ phase: s.phase, players: memberIds(s).length }),
+  };
+};
+function InitModule(
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  initializer: nkruntime.Initializer,
+): void {
+  initializer.registerRpc("game_catalog", rpcCatalog);
+  initializer.registerRpc("room_create", rpcRoomCreate);
+  initializer.registerRpc("room_list", rpcRoomList);
+  // Nakama 3.41 resolves callbacks by inspecting direct InitModule registrations.
+  initializer.registerRtBefore("ChannelJoin", chatBeforeLobbyJoin);
+  initializer.registerRtBefore("ChannelMessageSend", chatBeforeLobbySend);
+  initializer.registerRtBefore("ChannelMessageUpdate", chatBeforeUpdate);
+  initializer.registerRtBefore("ChannelMessageRemove", chatBeforeRemove);
+  initializer.registerMatch<RoomState>("game_room", {
+    matchInit: matchInit,
+    matchJoinAttempt: matchJoinAttempt,
+    matchJoin: matchJoin,
+    matchLeave: matchLeave,
+    matchLoop: matchLoop,
+    matchTerminate: matchTerminate,
+    matchSignal: matchSignal,
+  });
+  logger.info("Generic rooms: 30Hz authoritative room lifecycle");
+}

@@ -1,0 +1,28 @@
+{
+  "name": "godot-nakama-template",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Game-free Godot and Nakama authoritative networking foundation",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/dev-server.mjs",
+    "test": "node scripts/test.mjs",
+    "test:network": "node scripts/run-with-server.mjs node tests/network.mjs",
+    "export": "node scripts/export.mjs"
+  },
+  "dependencies": {
+    "@heroiclabs/nakama-js": "2.8.0",
+    "embedded-postgres": "16.14.0-beta.17",
+    "ws": "8.18.3"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
+  },
+  "scarfSettings": {
+    "enabled": false
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "none",
+    "outFile": "build/index.js",
+    "strict": true,
+    "noImplicitAny": true,
+    "skipLibCheck": true,
+    "lib": [
+      "es5",
+      "es2015.core"
+    ]
+  },
+  "files": [
+    "vendor/nakama-runtime.d.ts",
+    "src/types.ts",
+    "src/registry.ts",
+    "src/chat.ts",
+    "src/main.ts"
+  ]
+}

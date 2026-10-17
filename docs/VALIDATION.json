@@ -1,0 +1,166 @@
+{
+  "date": "2026-10-17",
+  "godot": "4.7.2.stable.steam.ed1daf0bf",
+  "nakama": "3.41.0",
+  "node": "24.18.0",
+  "sdk_checks": 55,
+  "wechat_http_mock_checks": 7,
+  "client_runs": [
+    {
+      "fixture": false,
+      "mode": "windowed",
+      "checks": [
+        "login no 3D/audio/animation",
+        "login no old resources",
+        "host login (duplicate click guarded)",
+        "guest login",
+        "lobby no 3D/audio/animation",
+        "lobby no old resources",
+        "empty server catalog and client registry",
+        "no module instance in lobby",
+        "logout clears connection",
+        "cancelled authentication cannot navigate late"
+      ],
+      "runtime_audits": [
+        {
+          "label": "login",
+          "bad_nodes": [],
+          "active_module": false,
+          "resources": [
+            "res://addons/com.heroiclabs.nakama/Nakama.gd",
+            "res://core/session.gd",
+            "res://ui/main.gd"
+          ]
+        },
+        {
+          "label": "lobby",
+          "bad_nodes": [],
+          "active_module": false,
+          "resources": [
+            "res://addons/com.heroiclabs.nakama/Nakama.gd",
+            "res://addons/com.heroiclabs.nakama/client/NakamaHTTPAdapter.gd",
+            "res://addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd",
+            "res://core/session.gd",
+            "res://ui/main.gd"
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": true,
+      "mode": "windowed",
+      "checks": [
+        "login no 3D/audio/animation",
+        "login no old resources",
+        "host login (duplicate click guarded)",
+        "guest login",
+        "lobby no 3D/audio/animation",
+        "lobby no old resources",
+        "create/join room",
+        "room no 3D/audio/animation",
+        "room no old resources",
+        "no module instance before start",
+        "guest joins",
+        "server assigns creator as host",
+        "server rejects non-host start",
+        "host ready",
+        "guest ready",
+        "host starts authoritative round",
+        "guest enters round",
+        "server applies module input",
+        "duplicate input sequence ignored",
+        "stale/foreign round input ignored",
+        "client score injection rejected",
+        "authoritative results",
+        "results no 3D/audio/animation",
+        "results no old resources",
+        "module released for results",
+        "guest gets results",
+        "guest cannot start next round",
+        "rematch preserves members and resets readiness",
+        "explicit leave retains account",
+        "host transfers on leave",
+        "rejoin after leave",
+        "socket disconnect clears local navigation",
+        "disconnect removes member and transfers host",
+        "login after disconnect",
+        "rejoin after disconnect",
+        "host final leave",
+        "guest final leave",
+        "SDK has no accumulated fire-and-forget requests"
+      ],
+      "runtime_audits": [
+        {
+          "label": "login",
+          "bad_nodes": [],
+          "active_module": false,
+          "resources": [
+            "res://addons/com.heroiclabs.nakama/Nakama.gd",
+            "res://core/session.gd",
+            "res://ui/main.gd"
+          ]
+        },
+        {
+          "label": "lobby",
+          "bad_nodes": [],
+          "active_module": false,
+          "resources": [
+            "res://addons/com.heroiclabs.nakama/Nakama.gd",
+            "res://addons/com.heroiclabs.nakama/client/NakamaHTTPAdapter.gd",
+            "res://addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd",
+            "res://core/session.gd",
+            "res://ui/main.gd"
+          ]
+        },
+        {
+          "label": "room",
+          "bad_nodes": [],
+          "active_module": false,
+          "resources": [
+            "res://addons/com.heroiclabs.nakama/Nakama.gd",
+            "res://addons/com.heroiclabs.nakama/client/NakamaHTTPAdapter.gd",
+            "res://addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd",
+            "res://core/session.gd",
+            "res://ui/main.gd"
+          ]
+        },
+        {
+          "label": "results",
+          "bad_nodes": [],
+          "active_module": false,
+          "resources": [
+            "res://addons/com.heroiclabs.nakama/Nakama.gd",
+            "res://addons/com.heroiclabs.nakama/client/NakamaHTTPAdapter.gd",
+            "res://addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd",
+            "res://core/session.gd",
+            "res://ui/main.gd"
+          ]
+        }
+      ]
+    }
+  ],
+  "pack": {
+    "files": 74,
+    "bytes": 12123604,
+    "sha256": "2f69a55b32a14369197211dc48867af823f014be804603f3c4006226b19141ef"
+  },
+  "not_tested": [
+    "new template on WeChat simulator",
+    "iOS/Android",
+    "browser",
+    "Linux/macOS",
+    "WAN multiplayer",
+    "production",
+    "long-run chat"
+  ],
+  "original_workspace_unchanged": true,
+  "cloud_operations": false,
+  "fresh_source_replay": {
+    "passed": true,
+    "empty_client_checks": 10,
+    "fixture_client_checks": 38,
+    "sdk_checks": 55,
+    "http_checks": 7,
+    "production_registry_empty": true
+  }
+}

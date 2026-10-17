@@ -1,0 +1,48 @@
+--- a/client/addons/com.heroiclabs.nakama/socket/NakamaSocket.gd
++++ b/client/addons/com.heroiclabs.nakama/socket/NakamaSocket.gd
+@@ -262,14 +262,24 @@
+ func _resume_request(p_id : String, p_data):
+ 	if _requests.has(p_id):
+ 		logger.debug("Resuming request: %s: %s" % [p_id, p_data])
+-		_requests[p_id].resume(p_data, logger)
++		# Drop ownership before completion callbacks can close/cancel the socket.
++		var request = _requests[p_id]
+ 		_requests.erase(p_id)
++		request.resume(p_data, logger)
+ 	else:
+ 		logger.warning("Trying to resume missing request: %s: %s" % [p_id, p_data])
+ 
+ func _cancel_request(p_id : String):
+-	logger.debug("Cancelling request: %s" % [p_id])
+-	_resume_request(p_id, NakamaException.new("Request cancelled."))
++	# A queued cancellation may run after socket-close cleanup has completed it.
++	if _requests.has(p_id):
++		logger.debug("Cancelling request: %s" % [p_id])
++		_resume_request(p_id, NakamaException.new("Request cancelled."))
++
++func _complete_no_response_request(p_id : String):
++	# Local send completion is not a server acknowledgement. Failure/close wins
++	# if it already removed the request before this deferred callback executes.
++	if _requests.has(p_id):
++		_resume_request(p_id, {})
+ 
+ func _clear_requests():
+ 	var ids = _requests.keys()
+@@ -442,7 +452,7 @@
+ 		p_presences
+ 	))
+ 	# This do not return a response from server, you don't really need to wait for it.
+-	req.call_deferred("resume", {})
++	call_deferred("_complete_no_response_request", req.id)
+ 	return req.completed
+ 
+ # Send input to a multiplayer match on the server.
+@@ -460,7 +470,7 @@
+ 		p_presences
+ 	))
+ 	# This do not return a response from server, you don't really need to wait for it.
+-	req.call_deferred("resume", {})
++	call_deferred("_complete_no_response_request", req.id)
+ 	return req.completed
+ 
+ # Unfollow one or more users from their status updates.

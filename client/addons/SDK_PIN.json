@@ -1,0 +1,33 @@
+{
+  "repository": "https://github.com/heroiclabs/nakama-godot",
+  "version": "v3.4.0",
+  "commit": "14b7f7078a9822c15b0424624e4c883c87730cee",
+  "release": "https://github.com/heroiclabs/nakama-godot/releases/tag/v3.4.0",
+  "asset_sha256": "540c7ff3556ef114188b93750626fe93cd5e5d151c5850061eb7a163ba7c6f3e",
+  "modifications": [
+    {
+      "id": "no-response-match-send-lifecycle",
+      "file": "addons/com.heroiclabs.nakama/socket/NakamaSocket.gd",
+      "upstream_file_sha256": "92e52159ffe1a53f10c4bf0b6391e539bd1cb5af01c47654ffa9a22de82b1a52",
+      "patched_file_sha256": "59c60255530ce0c96b7526564ffccd7611d5872ad74dafeb6c7ac9c70bd89bd7",
+      "patch": "patches/nakama-godot-v3.4.0-no-response-lifecycle.patch",
+      "reason": "Release typed/raw no-response requests after local completion and make failure/close/reentrant completion exactly once."
+    },
+    {
+      "id": "realtime-log-payload-redaction",
+      "file": "addons/com.heroiclabs.nakama/socket/NakamaSocket.gd",
+      "upstream_file_sha256": "59c60255530ce0c96b7526564ffccd7611d5872ad74dafeb6c7ac9c70bd89bd7",
+      "patched_file_sha256": "b183919719d497aa97054ec73f2d44aa971900c138348e28b482211b004759af",
+      "additional_files": [
+        {
+          "file": "addons/com.heroiclabs.nakama/socket/NakamaSocketAdapter.gd",
+          "upstream_file_sha256": "893d9f434c636842b586a096cd45fd679c48d5b81871955b359432b58a19ea9f",
+          "patched_file_sha256": "01523b62d484bf55d529684906cc1f6f7933e6153513ba3d5a2759f81c1d8fa7"
+        }
+      ],
+      "patch": "patches/nakama-godot-v3.4.0-realtime-log-redaction.patch",
+      "reason": "Apply after lifecycle patch: preserve realtime log categories and numeric server codes without outgoing chat, response, malformed JSON or late request payloads."
+    }
+  ],
+  "file_hash_line_endings": "LF"
+}
