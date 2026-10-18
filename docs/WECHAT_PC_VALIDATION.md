@@ -31,7 +31,7 @@ Claude实现由负责人/只读执行方审查，Sol实现由负责人检查；�
 3. 复用工具wx-compat后，再加载本仓库`decoded-json.js`与`acceptance-lifecycle.js`作为convert的local-interfaces，之后才启动引擎。前者处理已解压JSON的旧gzip标头，后者只转发固定hide/show，不包含网络连接或自动恢复。
 4. JS全局`FoundationAcceptance`提供`subscribeLifecycle(callback)`（数字句柄，回调hide/show）、`unsubscribeLifecycle(handle)`及`isHidden()`；最多4个监听，重复加载不重复注册wx回调，释放后不再通知旧入口。异常不输出正文。Godot端负责保留/解绑回调。
 5. 本阶段后台策略为：立即禁用并清空触摸/键盘输入，调用已有Session.logout，返回前台停留登录页，手动重登；不承诺恢复原局。原生PC普通窗口失焦不视为微信后台，避免切换测试窗口即退出。服务器成员消失和输入停止必须由另一端观察，不能只凭本地页面判断。
-6. 用户设备为iPhone＋Wi-Fi，具体型号、iOS、微信版本和是否同子网待实际记录。优先尝试同局域网的显式测试访问；数据库及管理端口继续loopback。API可达性、防火墙、微信调试模式限制尚未验证。不开公网映射、不改系统代理/全局防火墙；若本地路线不可用，先说明证据和最小替代，再决定是否需额外授权HTTPS/WSS测试资源。
+6. 用户设备为iPhone＋Wi-Fi，具体型号、iOS、微信版本待实际记录。用户于2026-10-18追加授权在既有腾讯云服务器部署本阶段测试后端：仅新增隔离实例、数据库、配置和HTTPS/WSS入口，不替换赛车生产运行时，不读写生产玩家数据，不重启既有服务。管理和数据库端口仍保持loopback；证书校验不关闭。该追加授权覆盖本阶段云测试部署，仓库默认“不部署云服”规则不扩大为通用部署许可。局域网显式测试访问仍为备选，不改系统代理或全局防火墙。
 
 ## 验收标准
 
@@ -51,7 +51,23 @@ Claude实现由负责人/只读执行方审查，Sol实现由负责人检查；�
 
 源码隐私审计还拦下了含本机绝对路径的Claude任务文档；该文档移至忽略的.local，仅向用户提供本地文件链接，保留原审计规则。正式阶段记录不包含机器路径或真实AppID。
 
-当前尚未收到Claude实现；测试包、微信模拟器、iPhone＋PC三轮互通、本轮真实后端、后台/断线实机行为、实际新PCK均未验收。明确保留定制rc引擎与stable编辑器的组合风险，实际运行失败须按引擎/工具/底座/测试入口分层定位，不能凭结构检查消除风险。无公网、长期负载或大状态选择性能结论。
+当前尚未收到Claude实现；新fixture测试包、iPhone＋PC三轮互通、后台/断线实机行为均未验收。明确保留定制rc引擎与stable编辑器的组合风险，实际运行失败须按引擎/工具/底座/测试入口分层定位，不能凭结构检查消除风险。无公网、长期负载或大状态选择性能结论。
+
+负责人在8e40642代码上亲跑`node scripts/test.mjs`退出0：协议34、请求隔离107、客户端请求16、大厅44、时间轴109、SDK55；六组真实本地后端双客户端10/62/58/12/13/36。冷启动1、进程超时8、profile13、清理夹具1及启动器配置检查通过。生产PCK实际加载审计78文件、12,146,144字节、SHA256 `b96c06a2c77627de7e6cac64e1834d3ddaea9e1d1ae749d693491ceb76b9ad58`，空注册且无fixture/3D/音频/图片；HTTP模拟7、源码审计176通过。端口释放，6个数据库保留、postmaster.pid为0，未发现命令行属于本worktree的残留Nakama/Postgres/Godot进程。该完整套件不包含尚未交付的Claude客户端，也不是微信/云服证据。
+
+新增薄封装`convert-cross-platform.mjs`复用工具的check→convert→verify；输入须为已审计的测试PCK。记录工具Git提交及dirty、PCK/引擎三件套/转换器/双bridge哈希，关闭工具的持久计时组件，AppID从本地JSON读取，不放在命令行。摘要不带AppID或本机路径；上游原始报告及输出只留.local。负责人已亲跑45项模拟外部工具测试，退出0；这些测试不能证明真实转换或微信启动。调用形式如下（所有占位路径由操作者替换，输出目录必须全新）：
+
+```text
+node scripts/convert-cross-platform.mjs --tool <tool-checkout> --engine <matched-engine-directory> --package <audited-fixture-export> --out .local/cross-platform/<new-run> --transformer <pinned-transformer> --appid-from <private-appid-json>
+```
+
+另用上述本轮生产PCK做**空底座引擎预检**，直接调用固定工具convert及verify，均退出0；verify为21通过、2提示、0失败（关闭计时、未做官方init）。该包没有fixture，不替代测试包。复用当前账户有权限的既有小游戏AppID，仅在新的本地工程打开；没有上传/发布或运行官方init。关闭工具计时不代表关闭微信SDK自身日志/平台行为，不能据此承诺整个宿主完全无遥测。
+
+微信开发者工具模拟器实跑该预检包：基础库3.17.4、WXGameKit1.3.15，日志显示`GODOT_RUNTIME_READY`、定制4.7.2rc引擎及原生启动main_success；**截图仍黑屏，登录页没有验收通过**。仅在忽略目录的生成interfaces追加一次性数值探针并刷新一次：实际小游戏上下文可见FoundationAcceptance、hidden=false、画布2532×1170，收到首个requestAnimationFrame，10秒定时器也执行。这不能证明Godot场景已渲染或GDScript回调订阅正常，也不能据此归因到未交付的Claude入口。CLI automation_evaluate所见全局缺bridge，而生成工程内的探针可见，故不能把该自动化上下文返回值当作引擎上下文缺桥的证据。原转换文件和追加探针版本分别保留；有探针的生成目录不是冻结验收包。预检窗口已正常关闭，未登录Nakama。后续先用正式测试入口的诊断区分场景加载和显示问题，不直接修改公共UI或重编引擎。
+
+转换单测初次引入两个字面合成AppID，被源码隐私审计拒绝；已改为运行时构造纯测试值，未放宽审计。负责人重跑45项转换单测和178文件源码审计均退出0。当前组合的完整套件证明范围仍以上述8e40642代码为准，后续新增薄封装只跑受影响专项，未把模拟工具测试写成真实fixture包验收。
+
+云部署接入预检：已确认本机SSH agent有原授权身份，保持BatchMode、指定身份与严格known-host检查。原HTTP CONNECT代理路线和直连均在SSH版本交换阶段关闭；直连已建立TCP连接，但没有收到远端SSH banner，尚未进入密钥认证。故本轮未取得远端当前服务、端口、资源或证书清单，未执行部署或修改远端。历史赛车报告里的可达性、服务PID和空房状态不能替代当前检查；访问恢复后先只读盘点，再选择独立实例路径、端口与TLS入口。不能仅因已获部署授权就复用历史生产发布器覆盖原服务。
 
 接续顺序：审查并集成Claude客户端和Sol打包提交 → 导出/审计测试与生产包 → convert check/convert/verify → 微信模拟器及原生PC连接 → 集中iPhone步骤并完成三轮和异常生命周期 → 完整适用回归/清理 → 固定提交与证据交付。全过程不自动合并或发布。
 
