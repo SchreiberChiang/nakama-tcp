@@ -20,8 +20,12 @@ export function connectionConfig(input = {}) {
   if (typeof host !== 'string' || !/^[a-zA-Z0-9.-]+$/.test(host) || host.length > 253 || !Number.isInteger(port) || port < 1 || port > 65535) throw Error('Invalid host or port');
   if ([tls, allow_insecure_lan, diagnostics].some(value => typeof value !== 'boolean')) throw Error('Connection flags must be booleans');
   const octets = host.split('.').map(Number);
-  const ipv4 = /^\d+\.\d+\.\d+\.\d+$/.test(host) && octets.every(n => n >= 0 && n <= 255);
-  const loopback = host === 'localhost' || (ipv4 && octets[0] === 127);
+  const dottedNumeric = /^\d+\.\d+\.\d+\.\d+$/.test(host);
+  const ipv4 = /^(?:0|[1-9]\d{0,2})(?:\.(?:0|[1-9]\d{0,2})){3}$/.test(host) && octets.every(n => n <= 255);
+  if (dottedNumeric && !ipv4) throw Error('IPv4 requires decimal octets without leading zeroes');
+  // The test transport extends production policy only for explicit RFC1918 LAN.
+  // This packaging CLI supports IPv4/localhost, not the ::1 spelling.
+  const loopback = host === 'localhost' || host === '127.0.0.1';
   const lan = ipv4 && (octets[0] === 10 || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) || (octets[0] === 192 && octets[1] === 168));
   if (!tls && !loopback && !(lan && allow_insecure_lan)) throw Error('Plaintext requires loopback or explicitly allowed RFC1918 IPv4');
   return { enabled: true, host, port, tls, allow_insecure_lan, diagnostics };
@@ -86,14 +90,15 @@ export function stageProject({ root = ROOT, out, config = connectionConfig() }) 
 
 export async function exportCrossPlatform({ godot = process.env.GODOT, runner = checked, ...options } = {}) {
   if (!godot) throw Error('Set GODOT to the Godot 4.7.2 executable');
-  const version = (await runner(godot, ['--version'], { timeout: 15000 })).trim();
+  const version = (await runner(godot, ['--version'], { timeout: 15000, forbidErrors: true })).trim();
   if (!/^4\.7\.2(?:\.|$)/.test(version)) throw Error('Godot 4.7.2 is required');
   const stage = stageProject(options);
   stage.manifest.godot_version = version;
   writeFileSync(path.join(stage.out, 'manifest.json'), JSON.stringify(stage.manifest, null, 2));
   const pack = path.join(stage.out, 'test.pck');
-  await runner(godot, ['--headless', '--editor', '--path', stage.client, '--import'], { timeout: 120000, log: path.join(stage.out, 'import.log') });
-  await runner(godot, ['--headless', '--path', stage.client, '--export-pack', 'Cross Platform Test PCK', pack], { timeout: 120000, log: path.join(stage.out, 'export.log') });
+  // checked's existing output gate also rejects Godot SCRIPT ERROR with exit 0.
+  await runner(godot, ['--headless', '--editor', '--path', stage.client, '--import'], { timeout: 120000, forbidErrors: true, log: path.join(stage.out, 'import.log') });
+  await runner(godot, ['--headless', '--path', stage.client, '--export-pack', 'Cross Platform Test PCK', pack], { timeout: 120000, forbidErrors: true, log: path.join(stage.out, 'export.log') });
   const audit = await auditCrossPlatform({ godot, pack, out: path.join(stage.out, 'audit'), runner });
   stage.manifest.pck = { file: 'test.pck', bytes: audit.bytes, sha256: audit.sha256 };
   stage.manifest.stage = 'exported-and-audited';

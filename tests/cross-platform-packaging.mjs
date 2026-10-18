@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { ROOT, connectionConfig, stageProject, exportCrossPlatform, parseArgs } from '../scripts/export-cross-platform.mjs';
 import { validateInventory } from '../scripts/audit-cross-platform.mjs';
+import { checked } from '../scripts/process.mjs';
 
 const base = path.join(ROOT, '.local/cross-platform');
 mkdirSync(base, { recursive: true });
@@ -43,7 +44,7 @@ try {
   check(() => assert.equal(stage.manifest.pck, null));
   check(() => assert.throws(() => stageProject({ root, out: stage.out }), /already exists/));
   check(() => assert.throws(() => stageProject({ root, out: path.join(root, 'unsafe') }), /under .local/));
-  for (const config of [{ host: 'example.com' }, { host: '192.168.0.4' }, { host: '172.32.0.1', allow_insecure_lan: true }, { host: '192.168.1.999', allow_insecure_lan: true }, { server_key: 'PRIVATE' }]) check(() => assert.throws(() => connectionConfig(config)));
+  for (const config of [{ host: 'example.com' }, { host: '192.168.0.4' }, { host: '172.32.0.1', allow_insecure_lan: true }, { host: '192.168.1.999', allow_insecure_lan: true }, { host: '127.0.0.2' }, { host: '192.168.01.2', allow_insecure_lan: true }, { host: '010.0.0.2', tls: true }, { server_key: 'PRIVATE' }]) check(() => assert.throws(() => connectionConfig(config)));
   check(() => assert.equal(connectionConfig({ host: 'example.com', tls: true }).tls, true));
   check(() => assert.equal(connectionConfig().host, '127.0.0.1'));
   check(() => assert.throws(() => parseArgs(['--tls', 'yes'])));
@@ -62,6 +63,7 @@ try {
   check(() => validateInventory(inventory));
   for (const file of ['res://tests/driver.gd.remap', 'res://tests/other.gdc', 'res://assets/car.png', 'res://assets/map.glb', 'res://tests/cross_platform/private.key']) check(() => assert.throws(() => validateInventory({ ...inventory, files: [...inventory.files, file] })));
   check(() => assert.throws(() => validateInventory({ ...inventory, empty_registry: false })));
+  await assert.rejects(checked(process.execPath, ['-e', 'console.log("SCRIPT ERROR: synthetic exit-zero Godot diagnostic")'], { timeout: 15000, forbidErrors: true }), /Process failed \(0\)/); checks++;
   console.log(`PASS cross-platform packaging: ${checks} checks (staging, isolation, manifest, fail-fast ordering, audit rules; no actual Godot export)`);
 } finally {
   // root is the exact mkdtemp directory owned by this test.

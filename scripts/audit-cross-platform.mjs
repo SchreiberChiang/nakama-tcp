@@ -32,7 +32,7 @@ export async function auditCrossPlatform({ godot = process.env.GODOT, pack, out,
   mkdirSync(out); // preserve previous evidence; never overwrite
   const empty = path.join(out, 'empty-root'); mkdirSync(empty);
   const report = path.join(out, 'inventory.json');
-  await runner(godot, ['--headless', '--main-pack', pack, '--script', path.join(path.dirname(fileURLToPath(import.meta.url)), 'cross_platform_pack_check.gd'), '--', `--report=${report}`], { cwd: empty, timeout: 15000, log: path.join(out, 'runtime.log') });
+  await runner(godot, ['--headless', '--main-pack', pack, '--script', path.join(path.dirname(fileURLToPath(import.meta.url)), 'cross_platform_pack_check.gd'), '--', `--report=${report}`], { cwd: empty, timeout: 15000, forbidErrors: true, log: path.join(out, 'runtime.log') });
   const inventory = JSON.parse(readFileSync(report, 'utf8'));
   validateInventory(inventory);
   const data = readFileSync(pack);
