@@ -32,14 +32,14 @@ export function connectionConfig(input = {}) {
 }
 
 const excluded = /(?:^|\/)(?:\.godot|\.git|profiles?|logs?|artifacts|build|driver[^/]*|[^/]*(?:fault|injection)[^/]*)(?:\/|$)|(?:^|\/)\.env(?:\.|$)|\.private\.|\.(?:pem|key|pck|wasm|exe|log|cfg)$/i;
-function copyTree(source, target, relative = '') {
+function copyTree(source, target, relative = '', omit = []) {
   for (const entry of readdirSync(source)) {
     const rel = relative ? `${relative}/${entry}` : entry;
-    if (excluded.test(rel)) continue;
+    if (excluded.test(rel) || omit.includes(rel)) continue;
     const from = path.join(source, entry), to = path.join(target, entry);
     const stat = lstatSync(from);
     if (stat.isSymbolicLink()) throw Error('Symlink in selected source');
-    if (stat.isDirectory()) { mkdirSync(to, { recursive: true }); copyTree(from, to, rel); }
+    if (stat.isDirectory()) { mkdirSync(to, { recursive: true }); copyTree(from, to, rel, omit); }
     else if (stat.isFile()) copyFileSync(from, to);
   }
 }
@@ -63,7 +63,7 @@ export function stageProject({ root = ROOT, out, config = connectionConfig() }) 
   }
   copyFileSync(path.join(source, 'Main.tscn'), path.join(client, 'Main.tscn'));
   mkdirSync(path.join(client, 'tests/cross_platform'), { recursive: true });
-  copyTree(path.join(source, 'tests/cross_platform'), path.join(client, 'tests/cross_platform'));
+  copyTree(path.join(source, 'tests/cross_platform'), path.join(client, 'tests/cross_platform'), '', ['cross_platform_tests.gd', 'cross_platform_tests.gd.uid']);
   for (const file of ['fixture_view.gd', 'fixture_view.gd.uid']) if (existsSync(path.join(source, 'tests', file))) copyFileSync(path.join(source, 'tests', file), path.join(client, 'tests', file));
   const fontPath = path.join(client, 'assets/fonts/TemplateCJK.otf');
   const font = existsSync(fontPath) ? readFileSync(fontPath) : gunzipSync(readFileSync(path.join(root, 'assets/source-fonts/TemplateCJK.otf.gz')));
@@ -76,7 +76,7 @@ export function stageProject({ root = ROOT, out, config = connectionConfig() }) 
     .replace('[application]', `[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="nakama-cross-platform-${runId}"`);
   project += '\n[cross_platform]\n' + Object.entries(config).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join('\n') + '\n';
   writeFileSync(path.join(client, 'project.godot'), project);
-  writeFileSync(path.join(client, 'export_presets.cfg'), `[preset.0]\nname="Cross Platform Test PCK"\nplatform="Windows Desktop"\nrunnable=true\nexport_filter="all_resources"\ninclude_filter="addons/NAKAMA_SDK_LICENSE,assets/fonts/LICENSE*.txt"\nexclude_filter="*.private.*,*.pem,*.key"\nscript_export_mode=2\n\n[preset.0.options]\n`);
+  writeFileSync(path.join(client, 'export_presets.cfg'), `[preset.0]\nname="Cross Platform Test PCK"\nplatform="Windows Desktop"\nrunnable=true\nexport_filter="all_resources"\ninclude_filter="addons/NAKAMA_SDK_LICENSE,assets/fonts/LICENSE*.txt"\nexclude_filter="*.private.*,*.pem,*.key"\nscript_export_mode=2\n\n[preset.0.options]\nbinary_format/embed_pck=false\n`);
   const manifest = {
     schema: 1, source_sha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     source_dirty: execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: root, encoding: 'utf8' }).trim().length > 0,

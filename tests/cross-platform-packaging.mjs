@@ -24,7 +24,7 @@ try {
   check(() => assert.equal(existsSync(out('missing')), false));
   for (const file of ['addons/sdk.gd', 'assets/fonts/LICENSE-CJK.txt', 'core/module_registry.gd', 'ui/main.gd', 'Main.tscn', 'tests/fixture_view.gd', 'tests/fixture_view.gd.uid', 'tests/cross_platform/entry.tscn', 'tests/cross_platform/test_session.gd', 'tests/cross_platform/ui.gd']) put(`client/${file}`);
   put('client/project.godot', 'config_version=5\n[application]\nrun/main_scene="res://Main.tscn"\n[autoload]\nSession="*res://core/session.gd"\n');
-  for (const file of ['.godot/cached', 'tests/driver.gd', 'tests/module_request_isolation.gd', 'tests/cross_platform/driver.gd', 'tests/cross_platform/fault_injection.gd', 'tests/cross_platform/local.private.cfg', 'addons/.env', 'addons/secret.key', 'assets/logs/private.txt']) put(`client/${file}`, 'NEVER_COPY');
+  for (const file of ['.godot/cached', 'tests/driver.gd', 'tests/module_request_isolation.gd', 'tests/cross_platform/driver.gd', 'tests/cross_platform/fault_injection.gd', 'tests/cross_platform/local.private.cfg', 'tests/cross_platform/cross_platform_tests.gd', 'tests/cross_platform/cross_platform_tests.gd.uid', 'addons/.env', 'addons/secret.key', 'assets/logs/private.txt']) put(`client/${file}`, 'NEVER_COPY');
   mkdirSync(path.join(root, 'assets/source-fonts'), { recursive: true });
   copyFileSync(path.join(ROOT, 'assets/source-fonts/TemplateCJK.otf.gz'), path.join(root, 'assets/source-fonts/TemplateCJK.otf.gz'));
   const projectBefore = readFileSync(path.join(root, 'client/project.godot'));
@@ -34,7 +34,9 @@ try {
   check(() => assert.deepEqual(readFileSync(path.join(root, 'client/core/module_registry.gd')), registryBefore));
   check(() => assert.equal(existsSync(path.join(root, 'client/assets/fonts/TemplateCJK.otf')), false));
   check(() => assert.deepEqual(readFileSync(path.join(stage.client, 'core/module_registry.gd')), registryBefore));
-  for (const file of ['.godot', 'tests/driver.gd', 'tests/module_request_isolation.gd', 'tests/cross_platform/driver.gd', 'tests/cross_platform/fault_injection.gd', 'tests/cross_platform/local.private.cfg', 'addons/.env', 'addons/secret.key', 'assets/logs']) check(() => assert.equal(existsSync(path.join(stage.client, file)), false, file));
+  for (const file of ['.godot', 'tests/driver.gd', 'tests/module_request_isolation.gd', 'tests/cross_platform/driver.gd', 'tests/cross_platform/fault_injection.gd', 'tests/cross_platform/local.private.cfg', 'tests/cross_platform/cross_platform_tests.gd', 'tests/cross_platform/cross_platform_tests.gd.uid', 'addons/.env', 'addons/secret.key', 'assets/logs']) check(() => assert.equal(existsSync(path.join(stage.client, file)), false, file));
+  check(() => assert.match(readFileSync(path.join(stage.client, 'export_presets.cfg'), 'utf8'), /\[preset\.0\.options\]\nbinary_format\/embed_pck=false\n/));
+  check(() => assert.ok(existsSync(path.join(stage.client, 'tests/cross_platform/test_session.gd')) && existsSync(path.join(stage.client, 'tests/cross_platform/entry.tscn')) && existsSync(path.join(stage.client, 'tests/cross_platform/ui.gd'))));
   const project = readFileSync(path.join(stage.client, 'project.godot'), 'utf8');
   check(() => assert.match(project, /Session="\*res:\/\/tests\/cross_platform\/test_session.gd"/));
   check(() => assert.match(project, /config\/custom_user_dir_name="nakama-cross-platform-/));
