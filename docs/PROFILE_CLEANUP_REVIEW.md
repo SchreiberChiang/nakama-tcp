@@ -16,7 +16,7 @@ Dot确认上一轮两项P2已修复，但发现测试脚本自身吞掉 `exitCon
 
 新增 `tests/profile-cleanup-regression.mjs` 在当前Node中注入一个真实自有夹具，以独立ESM query执行完整 `test-profile.mjs`，避免完整套件此前import过同模块而跳过复验。检查原Error对象传播、活进程、目录和配置内容保留；恢复全局钩子后恢复真实kill，等待确认退出才删精确归属目录，没有外层Node硬杀超时。新增回归在修改前失败，不能只验证内层 `withOwnedProfile`。
 
-## 验证结果
+## 首次验证：端口占用时
 
 负责人亲跑Windows Node24.18.0/Godot4.7.2：从无字体解压产物、无`.godot`新检出运行完整入口，新回归1/1、profile13/13、进程8/8、冷副本1/1（其中profile另执行13/13）、启动器24、生产/fixture构建、服务端34、大厅44、时间轴108、SDK55均通过。
 
@@ -29,6 +29,36 @@ Dot确认上一轮两项P2已修复，但发现测试脚本自身吞掉 `exitCon
 修复作者在Windows无Godot环境报告新回归1/1、profile12/12、进程8/8；修改前同一新增回归失败，恢复实际kill并确认退出后清理。另一Sol仅只读审查，没有运行测试。负责人另用独立注入脚本亲自复现前后差异，未仅转述作者报告。结构化证据见 [PROFILE_CLEANUP_REVIEW.json](PROFILE_CLEANUP_REVIEW.json)。
 
 运行方法：`node tests/profile-cleanup-regression.mjs` 不需要Godot或后端；完整入口 `node scripts/test.mjs` 已直接串行包含它，没有添加可提前杀死所有者的外层Node。完整网络复验须等本地固定端口释放后再运行，不为绕过占用而修改端口规则或现有服务。
+
+## 网络回归补跑：99f34b0代码
+
+2026-10-18，用户授权确认归属后正常关闭赛车本地测试服务，再补跑回归。实际检查时该实例已退出：没有对应Postgres/Nakama或匹配的Node启动器，54329与7348–7351五端口通过实际绑定检查。没有发送停止或强杀命令，没有复用数据库，没有删除赛车数据或修改其项目文件。已退出进程的完整命令行/工作目录无法事后补取，不能宣称查明其退出原因；此前端口占用者可执行路径属于赛车检出，本轮仅据当前进程与端口状态决定可以启动自有后端。
+
+Sol只读核对赛车原停止机制：run-with-server通过IPC通知dev-server，后者先停自有Nakama，再核对自有数据库PID并使用pg_ctl关闭，保留数据。读到的固定数据库历史日志为10月9–11日，不能当作本次实例正常退出证据。应用可见相关其他会话没有正在使用该实例的活动记录，当前实例本身也已不存在，因此没有需要抢占或协调停止的运行对象。
+
+负责人在干净且未修改的固定提交 `99f34b0c5626477ecb7d35dd9498f22f0c4770fb` 运行以下命令；本次准备缓存已存在，但完整入口仍执行独立无字体/无缓存副本回归。环境为Windows、Node24.18.0、Godot4.7.2、Nakama3.41.0、TypeScript5.9.3，使用独立worktree中的完整锁定依赖、自有loopback和每组新建数据库目录。
+
+```powershell
+$env:GODOT = '<本机 Godot 4.7.2 可执行文件>'
+$env:NAKAMA_BIN = '<本机 Nakama 3.41.0 可执行文件>'
+$env:SCARF_ANALYTICS = 'false'
+$env:NAKAMA_TELEMETRY = '0'
+$env:TEST_GUI = '0'
+node scripts/test.mjs
+# 本机保存的受控超时验证脚本，方法同 INFRA_REVIEW
+node .local/network-rerun-timeout-check.mjs
+```
+
+| 命令/检查 | 退出码与结果 |
+|---|---|
+| 完整 `scripts/test.mjs` | 0；profile13、新夹具回归1、进程8、冷副本1、启动器24、生产/fixture构建、服务端34、大厅44、时间轴108、SDK55均通过 |
+| 五组真实后端双客户端 | 空注册10、fixture62、诊断58、输入故障12、接收者投影故障13，全部通过 |
+| 完整套件内导出及审计 | 实际PCK78文件、12,146,080字节，包内登录页运行、空注册、无fixture/禁止节点；微信HTTP模拟7、源码审计165文件通过 |
+| 受控超时验证脚本 | 0；内部注入12,000ms预期timeout，两真实客户端已登录、21条断言后停止，无清理未验证提示 |
+| 最终清理核对 | 五端口可绑定、监听0、相关运行器/Node后端/Postgres/Nakama/Godot进程0，自有profile0、IPC0，真实默认配置哈希不变 |
+| 数据保留 | 本次六个独立数据库目录及各自PG_VERSION全部保留，postmaster.pid均已随正常关闭消失；未手工删锁或数据库 |
+
+实际PCK再次独立重算SHA256，仍为 `680cba8bb6930234f7ca1fcc92728be9c1c0fcb28e5674bed011b06f19721134`。本地完整日志为 `.local/profile-cleanup-network-rerun-full.log`，受控超时摘要和清理核对另存同目录；原端口冲突失败日志保留，没有将其改写成通过。此次补跑解除当前代码的网络验收阻塞；随后交付只更新验证文档，没有改测试或生产代码。
 
 ## 边界与下一步
 
