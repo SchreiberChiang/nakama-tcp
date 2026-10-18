@@ -38,6 +38,16 @@ try {
   assert.throws(() => owner.args(["--", "--profile=../../default"]));
   owner.cleanup(); owner.cleanup();
   pass("caller profile/path injection rejected; cleanup idempotent");
+  let preserved;
+  const unconfirmed = Object.assign(Error("direct process exit unconfirmed"), {exitConfirmed: false});
+  await assert.rejects(withOwnedProfile(dir, async owner => {
+    preserved = owner;
+    fs.writeFileSync(owner.file, "still owned by a possibly live process");
+    throw unconfirmed;
+  }), error => error === unconfirmed);
+  assert.equal(fs.readFileSync(preserved.file, "utf8"), "still owned by a possibly live process");
+  preserved.cleanup(); // The simulated writer is now known to have stopped.
+  pass("unconfirmed direct exit preserves profile until its owner confirms cleanup");
   const childScript = path.join(dir, "cooperative.mjs");
   const beforeDefault = digest(defaults);
   const networkScript = path.join(dir, "network.mjs");

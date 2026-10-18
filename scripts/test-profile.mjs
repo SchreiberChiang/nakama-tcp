@@ -61,8 +61,15 @@ export function ownProfile(root) {
 
 export async function withOwnedProfile(root, action) {
   const owner = ownProfile(root);
+  let safeToClean = true;
   try { return await action(owner); }
-  finally { owner.cleanup(); }
+  catch (error) {
+    // A bounded runner can release its handles without proving process exit.
+    // Preserve settings while that process may still write them.
+    safeToClean = error?.exitConfirmed !== false;
+    throw error;
+  }
+  finally { if (safeToClean) owner.cleanup(); }
 }
 
 export async function checkedGodot(args, options) {
