@@ -79,6 +79,7 @@ func _run() -> void:
 	_test_diagnostics()
 	_test_guide_states()
 	await _test_guide_wiring()
+	await _test_guide_initial_background()
 	await _test_entry()
 	await _test_guide_layout()
 	print("CROSS_PLATFORM_CHECKS %d FAILURES %d" % [checks, failures])
@@ -454,6 +455,29 @@ func _test_guide_wiring() -> void:
 	spy.snapshot_received.emit({})
 	lifecycle.enter_background("simulated")
 	check(after == before and guide.connection_count() == 0 and guide.text == frozen, "released guide disconnects every signal and ignores later callbacks")
+	guide.queue_free()
+	lifecycle.queue_free()
+	await process_frame
+	spy.free()
+
+func _test_guide_initial_background() -> void:
+	# Match entry's actual order: initial hidden bridge logs out before guide exists.
+	var spy := spy_session()
+	var fake := FakeBridgeInterface.new()
+	fake.hidden_now = true
+	var bridge = BRIDGE.new(fake, func(target: Callable): return FakeCallback.new(target))
+	var lifecycle: Node = LIFECYCLE.new()
+	root.add_child(lifecycle)
+	lifecycle.setup(spy, bridge, Callable())
+	var guide: Label = GUIDE.new()
+	root.add_child(guide)
+	guide.setup(spy, null, lifecycle)
+	var hidden_key: String = guide.state_key
+	lifecycle.return_foreground("bridge")
+	check(hidden_key == "background" and guide.state_key == "after_background" and spy.logouts == 1 and spy.logins == 0, "guide installed after initial hidden logout retains the reason on foreground return")
+	spy.connected = true
+	spy.authenticated.emit()
+	check(guide.state_key == "lobby" and not guide.text.contains("刚才切到后台"), "fresh authentication clears the initial-background explanation")
 	guide.queue_free()
 	lifecycle.queue_free()
 	await process_frame

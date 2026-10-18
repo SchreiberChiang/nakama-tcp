@@ -45,6 +45,9 @@ func setup(session_node: Node, main_node: Node, lifecycle_node: Node) -> void:
 	session = session_node
 	main = main_node
 	lifecycle = lifecycle_node
+	# entry initializes lifecycle first; its initial-hidden logout may predate us.
+	if lifecycle != null and lifecycle.hidden == true:
+		_logout_reason = "background"
 	if session != null:
 		_listen(session.authenticated, _on_authenticated)
 		_listen(session.logged_out, _on_logged_out)
