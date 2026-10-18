@@ -21,7 +21,7 @@ export function validateInventory(inventory) {
   assert.deepEqual(inventory.bad_nodes, []);
   const forbidden = /(?:games\/|fixtures\/|racing|stones|tabletop|harbor|vehicle|driver|fault|injection|\.private\.|(?:^|\/)\.env|\.(?:pem|key|ogg|wav|mp3|glb|gltf|png|jpe?g|webp|svg)(?:$|\.))/i;
   assert.deepEqual(inventory.files.filter(file => forbidden.test(file)), [], 'forbidden test/art dependency');
-  assert.deepEqual(inventory.files.filter(file => file.startsWith('res://tests/') && !file.startsWith('res://tests/cross_platform/') && !/^res:\/\/tests\/fixture_view\.gd(?:\.|$)/.test(file)), [], 'unrelated test dependency');
+  assert.deepEqual(inventory.files.filter(file => file.startsWith('res://tests/') && !file.startsWith('res://tests/cross_platform/') && !/^res:\/\/tests\/fixture_view\.gdc?(?:\.(?:remap|uid))?$/.test(file)), [], 'unrelated test dependency');
   assert.ok(inventory.files.includes('res://project.binary'));
   for (const required of ['res://addons/NAKAMA_SDK_LICENSE', 'res://assets/fonts/LICENSE-CJK.txt']) assert.ok(inventory.files.includes(required), 'third-party license preserved');
 }
