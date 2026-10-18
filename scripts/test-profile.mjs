@@ -11,6 +11,7 @@ export async function userDataRoot(godot = process.env.GODOT) {
   const key = `${godot}\0${project}`;
   if (!roots.has(key)) roots.set(key, (async () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "template-profile-probe-"));
+    let safeToClean = true;
     try {
       // Godot resolves the platform-specific user:// path itself. This tiny
       // project has the same application settings but NO Session/autoload.
@@ -25,10 +26,13 @@ export async function userDataRoot(godot = process.env.GODOT) {
       const root = JSON.parse(lines[0].slice("TEST_USER_DATA_ROOT=".length));
       if (typeof root !== "string" || !path.isAbsolute(root)) throw Error("Invalid Godot user data root");
       return root;
+    } catch (error) {
+      safeToClean = error?.exitConfirmed !== false;
+      throw error;
     } finally {
       const relative = path.relative(path.resolve(os.tmpdir()), path.resolve(dir));
       if (!relative || relative.startsWith("..") || path.isAbsolute(relative) || !path.basename(dir).startsWith("template-profile-probe-")) throw Error("Unsafe probe cleanup path");
-      rmSync(dir, { recursive: true, force: true });
+      if (safeToClean) rmSync(dir, { recursive: true, force: true });
     }
   })());
   return roots.get(key);
