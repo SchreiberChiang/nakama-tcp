@@ -18,7 +18,7 @@
 
 模拟30Hz、默认快照20Hz（可显式选10/30）。快照包含 tick、tick_rate、snapshot_rate、phase、game_id、options、host_id、capacity、min_players、host_change、countdown、round_id、results、players。核心为模块 players 补齐 connected、ready、staying、accepted_input_seq 并保持加入顺序。
 
-每条输入必须属于当前用户、当前 presence session、当前 round_id，seq 单调递增；过期轮次/重复序号不应用。合法op1超过60/s只丢弃并计rate_dropped，不加strike，command在可解析合法信封时记录rejected_rate；普通控制限6/s、载荷256字节，畸形/越权有 strike 与踢出阈值；聊天独立限额。创建房间按账号服务端时间限3秒，存储 CAS 防并发绕过。人数包含短期待加入席位；重复账号、满房和非 lobby 拒绝加入。房主离开或失联由服务端按加入顺序移交。全空房约10秒回收。
+每条输入必须属于当前用户、当前 presence session、当前 round_id，seq 单调递增；过期轮次/重复序号不应用。合法op1超过60/s只丢弃并计rate_dropped，不加strike，command在可解析合法信封时记录rejected_rate；普通控制限6/s、载荷256字节。核心协议违规（如畸形JSON/信封、客户端保留键、越权控制）按invalid计strike，达到8次踢出；模块业务校验返回false只是正常拒绝，不计strike，不能把两者统称为“畸形/越权必踢”。聊天独立限额。创建房间按账号服务端时间限3秒，存储 CAS 防并发绕过。人数包含短期待加入席位；重复账号、满房和非 lobby 拒绝加入。房主离开或失联由服务端按加入顺序移交。全空房约10秒回收。
 
 输入 `seq`、`client_tick` 必须为0到2147483647的整数；command/state共享seq，不提供自动重试；命令拒绝结果仍在32条环内时，重发原seq保持原拒绝结果且不会重新接受；拒绝记录被淘汰后，若该seq仍高于当前接受水位并通过round/time等门禁，原seq可能重新被接受。有界结果环不提供无限期拒绝去重；须由业务明确选择新的动作和新seq，不能把它当作同一动作可靠重发；服务端不信任客户端seq作为时间或分数。误发巨大合法seq会使本轮更小seq被拒绝，需要新轮次/新会话重新加入恢复；客户端不能替服务器提交分数。`client_tick` 是客户端最近收到的服务端快照tick，不能用客户端时钟；超过服务端当前tick未来2tick或过期input window拒绝。启动环境GAME_INPUT_WINDOW_TICKS默认30、GAME_STATE_TIMEOUT_TICKS默认15，两者仅接受1至300的整数，否则回退默认。窗口预算同时包含最新已收到快照的陈旧时间（快照间隔、下行）和上行/排队耗时，不是RTT测量，也不是RTT保证。固定一秒窗口限额不是平滑令牌桶，跨窗口可突发；仍受每tick消费和队列上限约束。非playing拒绝不会推进接受序号。
 
@@ -44,7 +44,9 @@ players 中 `accepted_input_seq/accepted_input_tick` 表示通过门禁并进入
 
 两个校验函数必须无外部副作用，只能返回严格的boolean。`false` 是正常拒绝；抛错或其他返回值是模块错误。每次调用拿到独立请求副本，修改该副本不能改变后续入队输入、传给select的内容或保存的选择。模块错误拒绝这次操作，继续处理同tick余下消息，只向发送者发送固定op11 `Module request failure`，每成员至少隔30模拟tick提示一次；日志仅记录固定类别（validate_input_error、validate_selection_error、select_error、request_clone_error），同成员同类别每30tick至多一次，不含异常正文、请求或身份。开启诊断时增加上述类别及module_request_error饱和计数；日志不依赖诊断开关。提示受限不代表错误被接受。
 
-输入校验错误不推进accepted/applied，不入队、不替换持续控制、不产生input_receipts。可归属command记录`rejected_module_error`，同seq+round已有结果或排队命令先被识别，不被新错误覆盖。state无命令终态。校验正常返回false不产生模块错误终态；只有固定拒绝提示，不提供新的精确结果类别。32条command_results窗口、新轮清空、窗口外unknown及无自动重试边界不变，错误终态不是跨重启账本。客户端已同步终态白名单和数值诊断；可恢复提示保留socket、会话、房间代际、输入provider、玩法视图和时间轴；原`Module failure`/`Projection failure`仍执行离房。
+输入校验错误不推进accepted/applied，不入队、不替换持续控制、不产生input_receipts。可归属command记录`rejected_module_error`，同seq+round已有结果或排队命令先被识别，不被新错误覆盖。state无命令终态。校验正常返回false不计strike、不产生模块错误终态；固定拒绝提示按成员至少隔30模拟tick一次，输入与选择（含旧选择重放）共享此提示预算，首条立即提示，恰好间隔30tick可再次提示。该预算独立于Module request failure的提示预算；它只限制回包，不跳过校验、不接受原本拒绝的请求、不改变现有调用预算。fixture中的score/position等非白名单字段属于模块拒绝，不能注入权威数据，但不会因此自动踢人；不提供新的精确结果类别。32条command_results窗口、新轮清空、窗口外unknown及无自动重试边界不变，错误终态不是跨重启账本。客户端已同步终态白名单和数值诊断；可恢复提示保留socket、会话、房间代际、输入provider、玩法视图和时间轴；原`Module failure`/`Projection failure`仍执行离房。
+
+客户端op1/op5解析后任意层出现`__proto__`、`constructor`或`prototype`键，在调用模块前按核心invalid处理；不形成rejected_module_error，不记录request_clone_error。模块自己产生的非法候选状态仍属于模块请求错误。这一区分依据数据来源，不把业务校验false重新当作核心协议违规。
 
 选择先复制真实游戏状态，在候选状态上执行select，再核验并复制完成的候选。严格返回true或false且复制成功，才一起提交游戏状态、原选择副本和ready：true清ready，false保留ready但仍保存选择并提交候选修改。拒绝选择由validateSelection返回false表达。异常、非法返回或复制失败时，三者均保持调用前值；绝不退回真实状态执行。提交后不保留校验/select拿到的引用。
 
@@ -52,7 +54,7 @@ players 中 `accepted_input_seq/accepted_input_tick` 表示通过门禁并进入
 
 下一轮先create并join全部成员，形成新轮默认状态，再按成员加入顺序逐人校验/重放旧选择，走相同候选提交路径。某人失败就清其核心保存选择为null，保留其新轮默认状态并通知本人；其他成员继续重放。新轮ready原本即为false。模块须把选择限制在自己的选择语义内，不能借另一人的成功选择覆盖失败成员的默认数据。
 
-这些隔离不是任意第三方代码沙箱：校验/select禁止修改全局、模块单例、外部缓存或通过闭包取得的真实状态，禁止数据库/网络副作用、异步任务与保留参数引用；无法回滚外部副作用或中断无限循环。`input`、`step`、`inputExpired`等权威执行失败仍保留整房故障保护；其异常前修改不具备事务回滚。create/join/leave等边界维持原合同，不扩大为请求级隔离。
+这些隔离不是任意第三方代码沙箱：校验/select禁止修改全局、模块单例、外部缓存或通过闭包取得的真实状态，禁止数据库/网络副作用、异步任务与保留参数引用；无法回滚外部副作用或中断无限循环。选择复制整个游戏状态两次，查重使用线性搜索；10,000节点/65,536字节只限制数据规模，不保证在30Hz的约33ms单tick预算内完成。接入较大状态前须在实际运行时单独测量选择和整tick耗时；当前没有CPU耗时预算、自动中断或特殊状态适配。`input`、`step`、`inputExpired`等权威执行失败仍保留整房故障保护；其异常前修改不具备事务回滚。create/join/leave等边界维持原合同，不扩大为请求级隔离。
 
 ## 快照字段单位与边界
 

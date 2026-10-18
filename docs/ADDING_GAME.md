@@ -2,13 +2,13 @@
 
 协议v3的请求回调与选择事务是新增兼容约束，详见[协议异常边界](PROTOCOL.md#请求回调异常与选择提交协议-v3)。接入前必须完成以下检查：
 
-- `validateInput`/`validateSelection`是纯校验，严格返回boolean；false表示正常拒绝。抛错/非法值只拒绝该请求，触发固定可恢复提示；输入校验错误的可归属command终态为rejected_module_error。客户端与服务器必须同时升级到v3，旧v2不混连。
+- `validateInput`/`validateSelection`是纯校验，严格返回boolean；false表示正常拒绝、不计strike，输入与选择共用每成员30tick一次的拒绝提示预算，限提示不免校验。客户端op1/op5任意层的保留键在模块调用前按核心invalid计strike；模块自己生成的非法状态仍按模块错误处理。抛错/非法值只拒绝该请求，触发独立限频的固定可恢复提示；输入校验错误的可归属command终态为rejected_module_error。客户端与服务器必须同时升级到v3，旧v2不混连。
 - 校验各自收到独立请求副本。`select`只操作候选状态，不要存储入参引用或通过全局/闭包修改真实状态、做数据库/网络/异步副作用。返回true提交候选并清ready；false也提交候选和选择但不清ready。拒绝放在validateSelection，不能用select返回false表示拒绝。
 - 需要选择的模块，全部游戏状态必须是可复制的普通数据树：null/boolean/string/有限number、稠密数组、普通或null原型对象；根深度0、最大32，最多10,000节点、JSON UTF-8 65,536字节。禁止undefined、循环/共享对象引用、访问器、特殊对象/函数、symbol键、自定义原型及污染键。选择前后均核验并复制，失败不提交、不使用真实状态兜底。没有选择功能的模块不会被强制转换为这种状态；特殊状态需要独立实现并审查适配，当前不提供万能克隆或适配钩子。
 - 下一轮先让全部成员进入默认状态，再按加入顺序重放旧选择；每次同样校验及隔离提交，失败成员清除保存选择、保持新轮默认，其余继续。不要假设重放时其他成员已经恢复旧选择。create/join应能生成合法默认状态，select不得破坏他人的默认选择。
 - 新模块回归要覆盖三个回调异常/非法返回、嵌套候选修改后抛错、false选择语义、同tick后续操作、旧选择重放、恢复提示和权威执行故障；不能只测回调函数本身。示例是`tests/server-request-isolation.mjs`，实际本地双端请求故障场景包含在完整`node scripts/test.mjs`中。
 
-请求隔离不能回滚模块的外部副作用或限制其无限循环；`input`/`step`/`inputExpired`及其他权威执行仍沿用整房故障保护。模块请求错误与玩家违规、快照投影故障是不同类别，不可混用。
+请求隔离不能回滚模块的外部副作用或限制其无限循环；`input`/`step`/`inputExpired`及其他权威执行仍沿用整房故障保护。模块请求错误与玩家违规、快照投影故障是不同类别，不可混用。选择事务会两次复制整个游戏状态，现有查重为线性搜索；数据大小上限不是33ms执行时间保证。较大状态玩法接入前，须在目标运行时测量选择和整tick耗时，再决定状态规模或专用适配；本阶段不提供自动CPU预算机制。
 
 1. 新建 `server/src/modules/your_game.ts`，实现 `server/src/types.ts` 的 `GameModule`。`version` 是正整数模块合同版本，`inputKinds` 显式声明 `["state", "command"]` 的支持子集；声明state必须实现 `inputExpired(state,id,tick)`，超时清除持续控制。`create/join/leave/start/step` 维护服务端状态；`validateInput` 白名单检查输入，`input` 只接收操作，禁止信任客户端上传的分数、结果或权威位置；`snapshot(state,recipientId)` 必须显式投影可见字段，返回至少含 `players` 数组的对象，每项含 `user_id`、`username`。`projectResults(state,rawResults,recipientId)` 必填，按接收者过滤结算，不能直接返回含隐藏手牌/秘密目标的原始对象。公共元数据/options不能放秘密。`finished/results` 产生权威结算。`duration>0` 是服务端超时兜底；0 表示模块自己结束。
 2. `server/tsconfig.json` 的 files 中在 registry 前增加新源文件，并在 `server/src/registry.ts` 注册 `{ your_game: YourGame }`。`id` 必须与注册 key 一致。保持普通构建中没有测试 fixture。
