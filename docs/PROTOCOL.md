@@ -1,13 +1,13 @@
 # 复用的房间协议
 
-认证仍走官方 Nakama 设备/邮箱认证与会话 WebSocket；账号 session 与房间 presence session 不可混淆。当前协议版本 `protocol_version=2`，模块另有正整数 `module_version`。catalog 和快照声明两者；加入 metadata 必须同时匹配（字符串），缺字段的旧客户端被拒绝。本合同不兼容原赛车云服，不能混连。
+认证仍走官方 Nakama 设备/邮箱认证与会话 WebSocket；账号 session 与房间 presence session 不可混淆。当前协议版本 `protocol_version=3`，模块另有正整数 `module_version`。catalog 和快照声明两者；加入 metadata 必须同时匹配（字符串），缺字段的旧客户端被拒绝。协议 v3 新增请求级模块错误终态和选择提交合同；v2 及更旧客户端/服务端必须成对升级，不能混连，也不兼容原赛车云服。模块版本仍由玩法作者按自身合同独立维护。
 
 | 接口                | 内容                                                                                                                                  |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| RPC `game_catalog`  | 空载荷；protocol_version=2、games（module_version/input_kinds）、room_flow_version=1、room_phase_version=2、容量和聊天能力            |
+| RPC `game_catalog`  | 空载荷；protocol_version=3、games（module_version/input_kinds）、room_flow_version=1、room_phase_version=2、容量和聊天能力            |
 | RPC `room_list`     | `{}` 或 `{game_id}`，返回 match_id/label/size                                                                                         |
 | RPC `room_create`   | `{game_id,name,options?,capacity?}`；模块必须已注册；名字1–32字符，容量在模块最小人数到8之间                                          |
-| join match metadata | `display_name`、`protocol_version:"2"`、`module_version:"1"`、`room_phase_version:"2"` 与模块的可选能力声明                           |
+| join match metadata | `display_name`、`protocol_version:"3"`、`module_version:"1"`、`room_phase_version:"2"` 与模块的可选能力声明                           |
 | op1                 | 输入 `{seq,round_id,kind,client_tick,...moduleInput}`；kind 为模块input_kinds声明支持的state或command；每用户最多60/s，playing 才接受 |
 | op2                 | 准备 `{ready,round_id}`，lobby且本轮才生效                                                                                            |
 | op3                 | 开始 `{round_id}`，房主、最小人数、全部准备且本轮后服务端倒计时3秒                                                                    |
@@ -24,9 +24,9 @@
 
 `state` 表示完整持续状态，单个用户只保留最新一份，tick内多次更新被合并。新状态首次消费时调用一次module.input，随后module.step按30Hz积分；最后接收state timeout（默认15tick/0.5模拟秒）后调用inputExpired清零，清零不是新输入。声明支持state的模块必须实现该回调，否则建房失败。`command` 表示一次动作，用户FIFO最多8条，每tick最多消费2条；队满拒绝且不推进seq；消费时超过client_tick input window（默认30tick）的命令丢弃并记录expired。退出、换轮清除队列/持续状态。无自动重试、持久命令账本或跨会话恢复。
 
-players 中 `accepted_input_seq/accepted_input_tick` 表示通过门禁并进入有界队列的最高序号及接收tick，不代表已执行。`applied_input_seq/applied_input_tick` 是已首次消费的最高seq及其tick；只有module.input与该tick的step正常返回后发布。该值不是连续累计ACK：状态合并、命令过期、两种输入先后消费均会产生空洞。仅本人player的 `input_receipts` 保留最近16条精确 `{seq,tick,kind}`，可验证较小命令在较大状态之后消费；窗口外无记录表示缺测，不能推断未执行。重复seq在当前房间轮次至多接受一次，但网络断开、进程失败、模块异常均不具备事务回滚，因此不承诺exactly-once或可靠完成。模块input返回void表示正常消费，不能借false表达拒绝；业务动作无效应先validate或在模块中明确呈现。matchLoop内的消息处理、start/input/step/inputExpired/finished/results异常被捕获后广播固定op11 Module failure，踢全部presence并return null终止整个房间；本次未成功完成input+step的输入不发布applied receipt。异常前状态可能已经改动（例如score已增加）；没有事务回滚，因此缺少receipt不能证明未生效。matchInit/join/leave等外部回调不在该matchLoop捕获边界内，模块仍须保证它们不抛错。
+players 中 `accepted_input_seq/accepted_input_tick` 表示通过门禁并进入有界队列的最高序号及接收tick，不代表已执行。`applied_input_seq/applied_input_tick` 是已首次消费的最高seq及其tick；只有module.input与该tick的step正常返回后发布。该值不是连续累计ACK：状态合并、命令过期、两种输入先后消费均会产生空洞。仅本人player的 `input_receipts` 保留最近16条精确 `{seq,tick,kind}`，可验证较小命令在较大状态之后消费；窗口外无记录表示缺测，不能推断未执行。重复seq在当前房间轮次至多接受一次，但网络断开、进程失败、模块异常均不具备事务回滚，因此不承诺exactly-once或可靠完成。模块input返回void表示正常消费，不能借false表达拒绝；业务动作无效应先validate或在模块中明确呈现。除下述请求级隔离外，matchLoop内的start/input/step/inputExpired/finished/results及未隔离的核心异常被捕获后广播固定op11 Module failure，踢全部presence并return null终止整个房间；本次未成功完成input+step的输入不发布applied receipt。异常前状态可能已经改动（例如score已增加）；没有事务回滚，因此缺少receipt不能证明未生效。matchInit/join/leave等外部回调不在该matchLoop捕获边界内，模块仍须保证它们不抛错。
 
-仅本人player额外包含独立的 `command_results` 环，最多32条 `{seq,round_id,tick,status}`，tick是结果形成的服务端tick；status为 `applied`、`expired`、`cancelled_round`、`rejected_full`、`rejected_stale`、`rejected_future`、`rejected_not_playing`、`rejected_round`、`rejected_old_seq`、`rejected_rate`。正常进入results时剩余排队命令记cancelled_round并清队列。state不会占用此环；精确seq+round的已知结果不可被重复命令覆盖，已排队命令的重复也不改变原动作。未知旧seq仅记rejected_old_seq，绝不推断为applied。格式错误/旧session没有可归属结果，窗口外、断线、房间故障、进程退出仍可能unknown；32条不是无限期账本，新command结果（包括合法拒绝）会淘汰最旧条目，不能承诺永远能查询、重启恢复或exactly-once。新轮次清空两个结果/receipt环。业务界面必须匹配精确seq+round，不能用applied_input_seq >= seq当作命令完成。
+仅本人player额外包含独立的 `command_results` 环，最多32条 `{seq,round_id,tick,status}`，tick是结果形成的服务端tick；status为 `applied`、`expired`、`cancelled_round`、`rejected_full`、`rejected_stale`、`rejected_future`、`rejected_not_playing`、`rejected_round`、`rejected_old_seq`、`rejected_rate`、`rejected_module_error`。正常进入results时剩余排队命令记cancelled_round并清队列。state不会占用此环；精确seq+round的已知结果不可被重复命令覆盖，已排队命令的重复也不改变原动作。未知旧seq仅记rejected_old_seq，绝不推断为applied。格式错误/旧session没有可归属结果，窗口外、断线、房间故障、进程退出仍可能unknown；32条不是无限期账本，新command结果（包括合法拒绝）会淘汰最旧条目，不能承诺永远能查询、重启恢复或exactly-once。新轮次清空两个结果/receipt环。业务界面必须匹配精确seq+round，不能用applied_input_seq >= seq当作命令完成。
 
 诊断新增固定原因计数late/future/not_playing/round/dup/queue_full/rate_dropped；state_timeout与command_expired分别计持续控制清零和排队命令过期，expired保留为两者合计。重复已知命令仅计dup，不能改变原有结果。
 
@@ -37,6 +37,22 @@ players 中 `accepted_input_seq/accepted_input_tick` 表示通过门禁并进入
 客户端异步请求校验连接 generation 与房间 epoch；注销后旧请求不得推进页面。退出先清本地成员和输入，再等待 leave。加入途中取消会注销并关闭该 socket，避免迟到 join 遗留在线成员。token/密码不持久化，不在 URL/错误正文日志中暴露。服务端所有规则以 `server/src/main.ts` 和 `types.ts` 为准；模块不得改共享的身份与房间门禁。
 
 聊天保持内存有界、无磁盘历史、不写快照、不写聊天正文日志；本模板保留 API/服务端策略，当前 UI 没有聊天面板，尚未对提取后的聊天全流程重新验收。
+
+## 请求回调异常与选择提交（协议 v3）
+
+`validateInput`、`validateSelection`、`select` 及下一轮的旧选择重放属于请求级边界。身份与 presence session、轮次/阶段、信封、已有或排队命令重复、调用预算和相关队列/时间门禁通过后才调用模块校验。op1 每人每模拟秒最多60次，控制消息每人每模拟秒最多6次；这些是原有固定窗口预算，不是CPU时间沙箱。正常协议违规仍保留原限流/strike规则，模块异常本身不计strike、不踢人。
+
+两个校验函数必须无外部副作用，只能返回严格的boolean。`false` 是正常拒绝；抛错或其他返回值是模块错误。每次调用拿到独立请求副本，修改该副本不能改变后续入队输入、传给select的内容或保存的选择。模块错误拒绝这次操作，继续处理同tick余下消息，只向发送者发送固定op11 `Module request failure`，每成员至少隔30模拟tick提示一次；日志仅记录固定类别（validate_input_error、validate_selection_error、select_error、request_clone_error），同成员同类别每30tick至多一次，不含异常正文、请求或身份。开启诊断时增加上述类别及module_request_error饱和计数；日志不依赖诊断开关。提示受限不代表错误被接受。
+
+输入校验错误不推进accepted/applied，不入队、不替换持续控制、不产生input_receipts。可归属command记录`rejected_module_error`，同seq+round已有结果或排队命令先被识别，不被新错误覆盖。state无命令终态。校验正常返回false不产生模块错误终态；只有固定拒绝提示，不提供新的精确结果类别。32条command_results窗口、新轮清空、窗口外unknown及无自动重试边界不变，错误终态不是跨重启账本。客户端已同步终态白名单和数值诊断；可恢复提示保留socket、会话、房间代际、输入provider、玩法视图和时间轴；原`Module failure`/`Projection failure`仍执行离房。
+
+选择先复制真实游戏状态，在候选状态上执行select，再核验并复制完成的候选。严格返回true或false且复制成功，才一起提交游戏状态、原选择副本和ready：true清ready，false保留ready但仍保存选择并提交候选修改。拒绝选择由validateSelection返回false表达。异常、非法返回或复制失败时，三者均保持调用前值；绝不退回真实状态执行。提交后不保留校验/select拿到的引用。
+
+允许的选择状态是有限普通数据树：null、boolean、string、有限number、稠密数组、普通对象（允许null原型）。根深度0，最大32；包括容器及值最多10,000节点；对应JSON的UTF-8长度最多65,536字节。禁止undefined、NaN/Infinity、函数、Date/Map/类实例、循环或重复对象别名、symbol键、访问器、不可枚举数据属性、自定义原型、稀疏数组、数组额外属性，以及任何层的`__proto__`/`constructor`/`prototype`键。不调用toJSON或getter做转换。请求仍另受256字节限制；选择前后都核验，状态超限按请求失败。此限制只针对选择事务，不为任意模块状态承诺通用JSON复制；特殊状态必须先实现并复核专用适配，当前没有适配钩子。
+
+下一轮先create并join全部成员，形成新轮默认状态，再按成员加入顺序逐人校验/重放旧选择，走相同候选提交路径。某人失败就清其核心保存选择为null，保留其新轮默认状态并通知本人；其他成员继续重放。新轮ready原本即为false。模块须把选择限制在自己的选择语义内，不能借另一人的成功选择覆盖失败成员的默认数据。
+
+这些隔离不是任意第三方代码沙箱：校验/select禁止修改全局、模块单例、外部缓存或通过闭包取得的真实状态，禁止数据库/网络副作用、异步任务与保留参数引用；无法回滚外部副作用或中断无限循环。`input`、`step`、`inputExpired`等权威执行失败仍保留整房故障保护；其异常前修改不具备事务回滚。create/join/leave等边界维持原合同，不扩大为请求级隔离。
 
 ## 快照字段单位与边界
 

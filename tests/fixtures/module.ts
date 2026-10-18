@@ -6,6 +6,7 @@ function fixturePlayer(p: any, recipient: string): any {
     score: p.score,
     position: { x: p.x, y: p.y },
     velocity: { x: p.dx * 60, y: p.dy * 60 },
+    selected: p.selected,
   };
   if (p.user_id === recipient) out.private_note = p.private_note;
   return out;
@@ -25,7 +26,7 @@ var LifecycleFixture: GameModule = {
     return o;
   },
   create: function (options: any) {
-    return { players: {}, test_failure: (options || {}).test_failure, test_projection_user: (options || {}).test_projection_user, started: false };
+    return { players: {}, test_failure: (options || {}).test_failure || null, test_projection_user: (options || {}).test_projection_user || null, started: false };
   },
   join: function (s: any, id: string, name: string) {
     s.players[id] = {
@@ -37,13 +38,36 @@ var LifecycleFixture: GameModule = {
       dx: 0,
       dy: 0,
       private_note: "PRIVATE_" + id,
+      selected: 0,
     };
   },
   leave: function (s: any, id: string) {
     delete s.players[id];
   },
   start: function (s: any, tick: number) { s.started = true; },
+  validateSelection: function (p: any): boolean {
+    if (p.test_error === true) throw Error("PRIVATE_REQUEST_VALIDATION_FAILURE");
+    return exactKeys(p, ["value", "test_error", "throw_after", "preserve_ready", "require_peer_selected"]) &&
+      finite(p.value) && Math.floor(p.value) === p.value && p.value >= 0 && p.value <= 9 &&
+      ["test_error", "throw_after", "preserve_ready", "require_peer_selected"].every(function (key) {
+        return p[key] === undefined || typeof p[key] === "boolean";
+      });
+  },
+  select: function (s: any, id: string, p: any): boolean {
+    var player = s.players[id];
+    if (p.throw_after || (p.require_peer_selected && !Object.keys(s.players).some(function (other) {
+      return other !== id && s.players[other].selected > 0;
+    }))) {
+      player.x = 123;
+      player.score = 999;
+      player.selected = 9;
+      throw Error("PRIVATE_REQUEST_SELECTION_FAILURE");
+    }
+    player.selected = p.value;
+    return p.preserve_ready !== true;
+  },
   validateInput: function (p: any) {
+    if (p.test_request_error === true) throw Error("PRIVATE_REQUEST_INPUT_FAILURE");
     if (p.kind === "command")
       return (
         exactKeys(p, ["seq", "round_id", "kind", "client_tick", "pulse"]) &&
@@ -52,7 +76,7 @@ var LifecycleFixture: GameModule = {
     return (
       p.kind === "state" &&
       exactKeys(p, ["seq", "round_id", "kind", "client_tick", "direction"]) &&
-      p.direction &&
+      !!p.direction &&
       typeof p.direction === "object" &&
       !Array.isArray(p.direction) &&
       exactKeys(p.direction, ["x", "y"]) &&

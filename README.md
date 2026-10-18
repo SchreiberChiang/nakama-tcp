@@ -1,5 +1,7 @@
 # Godot + Nakama 通用联机底座
 
+当前协议v3新增请求回调隔离与选择事务：两端一起升级，旧v2不能混连。范围、运行方法和本轮证据见[REQUEST_ISOLATION](docs/REQUEST_ISOLATION.md)。
+
 分阶段目标、当前状态、未测项与接续入口见 [PROJECT_STATUS](docs/PROJECT_STATUS.md)。本轮需求逐项验收与证据边界见 [ACCEPTANCE](docs/ACCEPTANCE.md)；时间轴两项审查与独立复验见 [TIMELINE_REVIEW](docs/TIMELINE_REVIEW.md)。
 
 后续交叉复核发现的超时等待及冷缓存导入问题、修复与最终复验见 [INFRA_REVIEW](docs/INFRA_REVIEW.md)。历史“全部验收通过”已补充限定，以最新报告为准。

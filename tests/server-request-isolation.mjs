@@ -108,6 +108,15 @@ for(const callback of ["validateInput","validateSelection"])test(`${callback} fa
   assert.ok(h.packets.some(p=>p.op===11&&JSON.parse(p.data).error===
     (callback==="validateInput"?"Invalid input schema":"Invalid player selection")));
 });
+test("fixture missing or null state direction is ordinary boolean rejection",()=>{
+  for (const direction of [undefined, null]) {
+    const h=harness();
+    alive(h,h.loop(10,[input(0,{kind:"state",pulse:undefined,direction})]));
+    unchangedInput(h);
+    assert.equal(h.s.members.alice.diagnostics.module_request_error,0);
+    assert.equal(h.s.members.alice.commandResults.length,0);
+  }
+});
 for(const changed of [false,true])test(`select ${changed} commits candidate and ${changed?"clears":"retains"} ready`,()=>{
   const h=harness("lobby"),m=h.s.members.alice;m.ready=true;const game=h.s.game;
   h.module.select=(candidate,id,p)=>{candidate.players[id].choice=p;return changed;};

@@ -175,6 +175,62 @@ try {
       (s) => !s.connected && s.page === "login",
       "cancelled authentication cannot navigate late",
     );
+  } else if (fault === "request") {
+    // Actual loopback Nakama + two Godot Sessions; injected fixture failures,
+    // not WAN fault evidence. No raw request/exception text is retained here.
+    await command(host, "create");
+    const room = await until(host, s => !!s.room && s.page === "room", "request fixture room created");
+    await command(guest, "join", {room: room.room});
+    await until(host, s => s.members === 2, "request fixture both clients joined");
+    const select = async (p, selection, round = 1) => {
+      await wait(250); // Respect Session's existing 220ms per-op control debounce.
+      return command(p, "raw", {op: 5, payload: {round_id: round, selection}});
+    };
+    const before = await command(host), peerBefore = await command(guest);
+    await command(host, "button", {button: "Ready"});
+    await until(host, s => s.ready_self, "request host ready before faults");
+    await select(host, {value: 3, test_error: true});
+    const validation = await until(host, s => s.module_request_failures === 1, "selection validation error produces recoverable sender hint");
+    check("selection validation preserves room readiness and selection", validation.room === room.room && validation.ready_self && validation.own.selected === 0 && validation.socket_instance === before.socket_instance);
+    const peerAfterValidation = await until(guest, s => s.snapshot.tick > peerBefore.snapshot.tick + 3, "peer keeps receiving snapshots after selection validation error");
+    check("selection validation error not broadcast to peer", peerAfterValidation.module_request_failures === 0 && peerAfterValidation.members === 2);
+    await until(host, s => s.snapshot.tick >= validation.snapshot.tick + 31, "warning interval advances by simulation ticks");
+    await select(host, {value: 7, throw_after: true});
+    const thrown = await until(host, s => s.module_request_failures === 2, "select exception produces recoverable sender hint");
+    check("nested failed candidate cannot change authority or ready", thrown.score === 0 && thrown.own.position.x === 0 && thrown.own.selected === 0 && thrown.ready_self && thrown.members === 2);
+    await select(host, {value: 4, preserve_ready: true});
+    const falseSelect = await until(host, s => s.own.selected === 4, "select false saves selection");
+    check("select false preserves ready", falseSelect.ready_self);
+    await select(guest, {value: 2});
+    await until(guest, s => s.own.selected === 2, "peer legal selection after failures");
+    await select(host, {value: 1, require_peer_selected: true});
+    const changed = await until(host, s => s.own.selected === 1 && !s.ready_self, "select true clears ready and commits selection");
+    check("request failures preserve account and room scope", changed.socket_instance === before.socket_instance && changed.presentation_scope === before.presentation_scope && !changed.module_failure && !changed.projection_failure);
+    await until(host, s => s.snapshot.tick >= changed.snapshot.tick + 31, "control window advances before ready and start");
+    await command(host, "button", {button: "Ready"});
+    await command(guest, "button", {button: "Ready"});
+    await until(host, s => s.snapshot.players.every(p => p.ready), "request round both ready");
+    await command(host, "button", {button: "Start"});
+    await until(host, s => s.phase === "playing" && s.active_module, "request round playing");
+    await until(guest, s => s.phase === "playing" && s.active_module, "request peer playing");
+    await command(host, "provider", {enabled: false});
+    await wait(150);
+    const playing = await command(host), peerPlaying = await command(guest);
+    const rejected = await command(host, "request_error");
+    const rejection = await until(host, s => s.own.command_results.some(r => r.seq === rejected.last_input_seq && r.status === "rejected_module_error"), "input validation exception has explicit terminal result");
+    check("input validation failure keeps presentation and does not consume", rejection.module_request_failures === 3 && rejection.module_instance === playing.module_instance && rejection.socket_instance === playing.socket_instance && rejection.presentation_scope === playing.presentation_scope && rejection.room === room.room && rejection.own.accepted_input_seq === playing.own.accepted_input_seq && rejection.own.applied_input_seq === playing.own.applied_input_seq && !rejection.own.input_receipts.some(r => r.seq === rejected.last_input_seq) && rejection.score === 0);
+    const peerAfterInput = await until(guest, s => s.snapshot.tick > peerPlaying.snapshot.tick + 4, "peer continues snapshots after input validation exception");
+    check("input validation failure remains sender-only", peerAfterInput.module_request_failures === 0 && peerAfterInput.module_instance === peerPlaying.module_instance && peerAfterInput.members === 2);
+    await command(host, "input");
+    await until(host, s => s.score === 1, "next legal command after validation failure executes");
+    await until(host, s => s.phase === "results", "request round reaches normal results", 22000);
+    await command(host, "button", {button: "Rematch"});
+    const replayed = await until(host, s => s.round === 2 && s.phase === "lobby" && s.module_request_failures === 4, "old selection failure recovers in next lobby");
+    const replayPeer = await until(guest, s => s.round === 2 && s.own.selected === 2, "other member old selection replays successfully");
+    check("failed replay restores only affected default without nested pollution", replayed.own.selected === 0 && replayed.score === 0 && replayed.own.position.x === 0 && !replayed.ready_self && replayed.members === 2 && replayPeer.module_request_failures === 0);
+    await select(host, {value: 3}, 2);
+    await until(host, s => s.own.selected === 3 && s.round === 2, "legal selection after failed replay works");
+    check("request faults leave SDK requests drained", (await command(host)).sdk_pending === 0 && (await command(guest)).sdk_pending === 0);
   } else if (fault) {
     const options = fault === "input" ? {test_failure: "input"} : {test_projection_user: "Guest"};
     await command(host, "create", {options});
@@ -401,7 +457,7 @@ try {
 }
 for (const p of players)
   assert.ok(
-    !/(SCRIPT ERROR|^ERROR:|^WARNING:|Parse Error)/m.test(p.output()),
+    !/(SCRIPT ERROR|^ERROR:|^WARNING:|Parse Error|PRIVATE_REQUEST_)/m.test(p.output()),
     p.output(),
   );
 console.log(`PASS ${checks.length} checks; evidence ${evidence}`);

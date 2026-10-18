@@ -18,6 +18,8 @@ for (const args of [["scripts/build.mjs"], ["scripts/build.mjs", "--fixture"]])
     await checked(process.execPath, args, { log: ".local/test-build.log" }),
   );
 console.log(await checked(process.execPath, ["tests/server-protocol.mjs"], {log: ".local/server-protocol.log"}));
+console.log(await checked(process.execPath, ["tests/server-request-isolation.mjs"], {log: ".local/server-request-isolation.log"}));
+console.log(await checkedGodot(["--headless", "--path", "client", "--script", "res://tests/module_request_isolation.gd"], {log: ".local/module-request-isolation.log"}));
 const lobbyOutput = await checkedGodot( ["--headless", "--path", "client", "--script", "res://tests/lobby_state.gd"], {log: ".local/lobby-state.log"});
 if (/PRIVATE_(?:RAW|RESPONSE|JOIN)_SENTINEL/.test(lobbyOutput)) throw Error("Lobby output leaked private response content.");
 console.log(lobbyOutput);
@@ -34,7 +36,7 @@ console.log(
     { log: ".local/sdk.log" },
   ),
 );
-for (const scenario of ["empty", "fixture", "diagnostics", "input", "projection"]) {
+for (const scenario of ["empty", "fixture", "diagnostics", "input", "projection", "request"]) {
   const fixture = scenario !== "empty";
   const env = {
     ...process.env,
@@ -42,7 +44,7 @@ for (const scenario of ["empty", "fixture", "diagnostics", "input", "projection"
     TEST_FIXTURE: fixture ? "1" : "0",
     NAKAMA_LOG: `.local/server-${scenario}.log`,
     TEST_DIAGNOSTICS: scenario === "diagnostics" ? "1" : "0",
-    TEST_FAULT: ["input", "projection"].includes(scenario) ? scenario : "",
+    TEST_FAULT: ["input", "projection", "request"].includes(scenario) ? scenario : "",
   };
   if (scenario === "diagnostics") env.GAME_DIAGNOSTICS = "1";
   else delete env.GAME_DIAGNOSTICS;
