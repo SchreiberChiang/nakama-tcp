@@ -104,7 +104,66 @@ func test_extrapolated_reanchor(extrapolation_ms: float, motion: String, delay_m
 	if motion == "moving": expected_end += Vector2(30, -60) * extrapolation_ms / 1000.0
 	check(poses_before.LOCAL_TEST.position.is_equal_approx(expected_end), "reanchor retains bounded authoritative velocity only " + label)
 
+func test_authority_after_hold() -> void:
+	var line = TIMELINE.new()
+	line.configure(500, 33)
+	line.configure_recovery(350)
+	var held: Dictionary = {}
+	var now := 0.0
+	for frame in range(180):
+		now = frame / 60.0
+		if frame == 0: line.push_snapshot(state(0), now, "authority-after-hold")
+		if frame == 30: line.push_snapshot(state(3), now, "authority-after-hold")
+		held = line.sample(now)
+		if frame > 30 and line.state == "buffering" and line._rebuffering: break
+	check(line.state == "buffering" and line._rebuffering and line.clock_reanchors > 0 and held.has("LOCAL_TEST"), "authority-update scenario genuinely enters reanchor hold")
+	var held_time := float(line.presented_time_seconds)
+	var held_position: Vector2 = held.LOCAL_TEST.position
+	var correction := state(4)
+	correction.players[0].position = {"x": -40.0, "y": -20.0}
+	correction.players[0].velocity = {"x": 0.0, "y": 0.0}
+	now += 1.0 / 60.0
+	check(line.push_snapshot(correction, now, "authority-after-hold") and line.last_server_tick == 4, "held timeline accepts fresh authoritative negative correction")
+	var corrected: Dictionary = line.sample(now)
+	check(corrected.LOCAL_TEST.position.x < held_position.x and corrected.LOCAL_TEST.position.y < held_position.y, "fresh authority may move pose backwards after hold without source-time rewind")
+	check(float(line.presented_time_seconds) >= held_time and line.state == "buffering", "negative authority correction preserves held source time while still buffering")
+	var forward := state(7)
+	forward.players[0].position = {"x": -10.0, "y": -5.0}
+	forward.players[0].velocity = {"x": 0.0, "y": 0.0}
+	now += 1.0 / 60.0
+	check(line.push_snapshot(forward, now, "authority-after-hold") and line.last_server_tick == 7, "authority continues advancing after held correction")
+	var advanced: Dictionary = {}
+	for frame in range(60):
+		now += 1.0 / 60.0
+		advanced = line.sample(now)
+	check(advanced.LOCAL_TEST.position.is_equal_approx(Vector2(-10, -5)) and float(line.presented_time_seconds) > held_time, "held timeline resumes following subsequent authoritative pose")
+	var removed := state(8)
+	removed.players.clear()
+	now += 1.0 / 60.0
+	check(line.push_snapshot(removed, now, "authority-after-hold") and line.last_server_tick == 8, "post-hold authority accepts player removal")
+	for frame in range(60):
+		now += 1.0 / 60.0
+		advanced = line.sample(now)
+	check(not advanced.has("LOCAL_TEST") and line.frames[-1].poses.is_empty(), "removed player cannot survive in post-hold presentation")
+	# Separate boundary: removal reaches the already displayed source time,
+	# rather than demanding a future membership change be shown early.
+	line.reset()
+	for frame in range(180):
+		now = frame / 60.0
+		if frame == 0: line.push_snapshot(state(0), now, "removal-during-hold")
+		if frame == 30: line.push_snapshot(state(3), now, "removal-during-hold")
+		line.sample(now)
+		if frame > 30 and line.state == "buffering" and line._rebuffering: break
+	check(line.state == "buffering" and line._rebuffering and line.clock_reanchors > 0, "removal scenario genuinely enters reanchor hold")
+	var held_removal := state(4)
+	held_removal.players.clear()
+	now += 1.0 / 60.0
+	check(line.push_snapshot(held_removal, now, "removal-during-hold") and line.last_server_tick == 4, "fresh authority removes player during actual hold")
+	var without_player: Dictionary = line.sample(now)
+	check(line.state == "buffering" and without_player.is_empty(), "held presentation does not retain authoritatively removed player")
+
 func _run() -> void:
+	test_authority_after_hold()
 	for extra in [0.0, 33.0]:
 		for motion in ["moving", "stationary", "missing"]:
 			test_extrapolated_reanchor(extra, motion)
@@ -342,7 +401,5 @@ func _run() -> void:
 	view.release()
 	check(original.has("players") and original.players.size() == 1, "release leaves input snapshot intact")
 	view.free()
-	if transport.profile.begins_with("unit-timeline-"):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(transport.config_path()))
 	print("TIMELINE_CHECKS %d FAILURES %d" % [checks, failures])
 	quit(1 if failures else 0)

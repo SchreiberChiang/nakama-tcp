@@ -238,7 +238,5 @@ func _run() -> void:
 	session.connected = false
 	session.socket = null
 	await process_frame
-	if session.profile.begins_with("unit-lobby-"):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(session.config_path()))
 	print("LOBBY_STATE checks=%d failures=%d" % [checks, failures])
 	quit(1 if failures else 0)

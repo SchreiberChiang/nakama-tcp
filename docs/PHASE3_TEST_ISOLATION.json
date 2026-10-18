@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-18",
+  "stage": "phase3-test-isolation",
+  "branch": "codex/foundation-phase3-test-isolation-20261018",
+  "baseline": "851a4f096e6d7468405f7a1a191585f0e0de6b49",
+  "status": "pass",
+  "protocol_version": 2,
+  "production_source_changed": false,
+  "timeline_git_blob": "e724c984a95107010c6bfdf958b48459019e725a",
+  "timeline_identical_to_a7b2fa7": true,
+  "author_report": {"profile_runner": 12, "lobby": 44, "timeline": 108, "sdk": 55, "negative_control_failures": 6, "backend_run": false},
+  "read_only_review": {"unresolved_blocking_findings": 0, "executed_tests": false},
+  "primary_full_run": {
+    "exit_code": 0,
+    "profile_runner": 12,
+    "launcher_assertions": 24,
+    "production_build": true,
+    "fixture_build": true,
+    "server_protocol": 33,
+    "lobby": 44,
+    "timeline_and_session": 108,
+    "sdk": 55,
+    "empty_clients": 10,
+    "fixture_clients": 62,
+    "diagnostics_clients": 58,
+    "input_fault_clients": 12,
+    "projection_fault_clients": 13,
+    "wechat_http_mocks": 7,
+    "source_audit_files": 155
+  },
+  "primary_negative_control": {
+    "checks": 108,
+    "expected_failures": 6,
+    "control_verifier_exit_code": 0,
+    "production_core_unchanged": true,
+    "injection": "Disposable client copy ignores new snapshots while rebuffering; exact authority correction and removal assertions must fail"
+  },
+  "primary_real_timeout": {
+    "intentional_outer_timeout_ms": 12000,
+    "expected_timeout_observed": true,
+    "real_clients_logged_in": 2,
+    "assertions_completed_before_timeout": 21,
+    "verification_script_exit_code": 0,
+    "cooperative_cleanup_unverified": false,
+    "default_profile_unchanged": true,
+    "owned_profiles_unchanged": true,
+    "ipc_remaining": 0,
+    "scope": "One controlled Windows same-PC loopback test, not OS hard-termination recovery"
+  },
+  "pack": {
+    "files": 78,
+    "bytes": 12146080,
+    "sha256": "1863e2f0610988f0ca46447fb01bf56c191555c151fe2f69fcd4512d48aab840",
+    "hash_independently_rechecked": true,
+    "empty_registry": true,
+    "has_fixture": false,
+    "bad_nodes": [],
+    "packed_scene": "login"
+  },
+  "cleanup": {
+    "network_runs_including_timeout": 6,
+    "ipc_remaining": 0,
+    "owned_profile_files_remaining": 0,
+    "default_profile_present_before_and_after": true,
+    "default_profile_sha256_unchanged": true,
+    "observations_numeric_or_boolean": true,
+    "raw_response_sentinel_leaked": false,
+    "listening_test_ports": 0,
+    "owned_runtime_processes": 0
+  },
+  "limits": [
+    "Default-file absence exercised in temporary directories, not by deleting the real user default",
+    "Bare Godot script invocation bypasses the profile owner; use test-godot-unit.mjs",
+    "Hard termination of the outer owner, OS shutdown, or failed process termination does not guarantee cleanup",
+    "Timeline tests permit authoritative position corrections; source-time monotonicity is not coordinate monotonicity"
+  ],
+  "not_tested": ["Linux/macOS", "mobile", "WeChat IDE/device", "Web/WASM", "WAN", "long load", "subjective visual quality", "outer-owner OS hard-kill recovery", "phase3 Dot/Claude review"]
+}

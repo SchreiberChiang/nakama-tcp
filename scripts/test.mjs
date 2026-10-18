@@ -1,26 +1,26 @@
 import { checked } from "./process.mjs";
 import { mkdirSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { checkedGodot } from "./test-profile.mjs";
 if (!process.env.GODOT) throw Error("Set GODOT to Godot 4.7.2 executable.");
 mkdirSync(".local", { recursive: true });
+// This test itself owns Godot children; avoid another hard-killing Node parent.
+await import("../tests/test-profile.mjs");
 console.log(await checked(process.execPath, ["scripts/test-launcher-config.mjs"], {log: ".local/launcher-config.log"}));
 for (const args of [["scripts/build.mjs"], ["scripts/build.mjs", "--fixture"]])
   console.log(
     await checked(process.execPath, args, { log: ".local/test-build.log" }),
   );
-await checked(
-  process.env.GODOT,
+await checkedGodot(
   ["--headless", "--editor", "--path", "client", "--import"],
   { timeout: 120000, log: ".local/import.log" },
 );
 console.log(await checked(process.execPath, ["tests/server-protocol.mjs"], {log: ".local/server-protocol.log"}));
-const lobbyOutput = await checked(process.env.GODOT, ["--headless", "--path", "client", "--script", "res://tests/lobby_state.gd", "--", `--profile=unit-lobby-${randomUUID()}`], {log: ".local/lobby-state.log"});
+const lobbyOutput = await checkedGodot( ["--headless", "--path", "client", "--script", "res://tests/lobby_state.gd"], {log: ".local/lobby-state.log"});
 if (/PRIVATE_(?:RAW|RESPONSE|JOIN)_SENTINEL/.test(lobbyOutput)) throw Error("Lobby output leaked private response content.");
 console.log(lobbyOutput);
-console.log(await checked(process.env.GODOT, ["--headless", "--path", "client", "--script", "res://tests/snapshot_timeline.gd"], {log: ".local/snapshot-timeline.log"}));
+console.log(await checkedGodot( ["--headless", "--path", "client", "--script", "res://tests/snapshot_timeline.gd"], {log: ".local/snapshot-timeline.log"}));
 console.log(
-  await checked(
-    process.env.GODOT,
+  await checkedGodot(
     [
       "--headless",
       "--path",
@@ -48,21 +48,20 @@ for (const scenario of ["empty", "fixture", "diagnostics", "input", "projection"
   console.log(
     await checked(
       process.execPath,
-      ["scripts/run-with-server.mjs", process.execPath, "tests/network.mjs"],
+      ["scripts/run-with-server.mjs", "--test-cooperative-stop", process.execPath, "tests/network.mjs"],
       {
         timeout: 180000,
+        cooperativeStop: true,
+        cleanupGrace: 100000,
         env,
         log: `.local/network-${scenario}.log`,
       },
     ),
   );
 }
-console.log(
-  await checked(process.execPath, ["scripts/export.mjs"], {
-    timeout: 180000,
-    log: ".local/export-check.log",
-  }),
-);
+// Keep the owning parent alive until each bounded Godot export/audit closes.
+// Individual import/export/runtime logs remain in .local.
+await import("./export.mjs");
 console.log(
   await checked(process.execPath, ["platform/wechat/test-decoded-json.mjs"], {
     log: ".local/wechat-http.log",

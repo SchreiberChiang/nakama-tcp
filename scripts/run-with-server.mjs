@@ -54,6 +54,19 @@ export async function terminateOwned(child, label, timeoutMs = 5000) {
   }
 }
 
+// Only opt-in automated tests implement this protocol. A hard kill is a
+// reported cleanup failure, never evidence that descendants were cleaned.
+export async function stopCooperativeTest(child, timeoutMs = 40000) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  if (!child.connected) throw Error("Test IPC unavailable; descendant cleanup unverified");
+  child.send({ type: "test-stop" }, () => {});
+  try { await waitForExit(child, "Cooperative test cleanup", timeoutMs); }
+  catch (error) {
+    await terminateOwned(child, "Unresponsive test");
+    throw Error(`${error.message}; descendant cleanup unverified`);
+  }
+}
+
 export async function stopLauncher(
   server,
   { timeoutMs = 45000, log = "logs/integration-server.log" } = {},
@@ -80,6 +93,9 @@ if (
 ) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   process.chdir(root);
+  const commandArgs = process.argv.slice(2);
+  const cooperativeTest = commandArgs[0] === "--test-cooperative-stop" || process.env.TEST_COOPERATIVE_STOP === "1";
+  if (commandArgs[0] === "--test-cooperative-stop") commandArgs.shift();
   let server;
   let child;
   let stopping = false;
@@ -87,7 +103,7 @@ if (
   const stop = onceShutdown([
     () => {
       stopping = true;
-      return terminateOwned(child, "Test process");
+      return cooperativeTest ? stopCooperativeTest(child) : terminateOwned(child, "Test process");
     },
     () =>
       stopLauncher(server, {
@@ -109,6 +125,9 @@ if (
   process.on("SIGTERM", async () => {
     await finish(143);
   });
+  if (cooperativeTest) process.on("message", message => {
+    if (message?.type === "test-stop") void finish(124);
+  });
   try {
     await assertPortsFree();
     mkdirSync("logs", { recursive: true });
@@ -116,6 +135,7 @@ if (
       process.env.NAKAMA_LOG || "logs/integration-server.log",
       "w",
     );
+    if (stopping) throw Error("Stopped before server launch");
     server = spawn(process.execPath, ["scripts/dev-server.mjs"], {
       stdio: ["ignore", out, out, "ipc"],
       env: { ...process.env, NAKAMA_TELEMETRY: "0" },
@@ -155,19 +175,21 @@ if (
         }
       });
     });
+    if (stopping) throw Error("Stopped during server readiness");
     if (server.exitCode !== null) throw Error("Owned server already exited");
     await waitForOwnedHealth({
       isAlive: () =>
         server.exitCode === null && server.signalCode === null && !ownedStopped,
     });
-    const args = process.argv.slice(2),
+    const args = commandArgs,
       command = args.shift() || process.execPath;
+    if (stopping) throw Error("Stopped before test launch");
     child = spawn(command, args.length ? args : ["tests/e2e.mjs"], {
-      stdio: "inherit",
+      stdio: cooperativeTest ? ["inherit", "inherit", "inherit", "ipc"] : "inherit",
       env: process.env,
     });
     server.once("exit", () => {
-      if (!stopping && child?.exitCode === null) child.kill("SIGTERM");
+      if (!stopping && child?.exitCode === null) void finish(1);
     });
     const code = await new Promise((resolve, reject) => {
       child.once("exit", resolve);

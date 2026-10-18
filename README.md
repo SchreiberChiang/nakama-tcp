@@ -57,6 +57,8 @@ node scripts/run-with-server.mjs $env:GODOT --path client -- --profile=local-one
 
 当前阶段与接手入口见 [PROJECT_STATUS](docs/PROJECT_STATUS.md)；大厅草稿保留、请求乱序隔离、验证结果与边界见 [PHASE2_LOBBY](docs/PHASE2_LOBBY.md)。
 
+自动测试、导出和PCK审计的本地配置隔离，以及时间轴保持后接受新权威的回归见 [PHASE3_TEST_ISOLATION](docs/PHASE3_TEST_ISOLATION.md)。单测使用 `node scripts/test-godot-unit.mjs lobby_state snapshot_timeline sdk_socket_lifecycle`；直接裸跑Godot脚本仍可能读写默认本地配置。
+
 阶段一协议与消费语义见 [PROTOCOL](docs/PROTOCOL.md)，呈现缓冲见 [SNAPSHOT_TIMELINE](docs/SNAPSHOT_TIMELINE.md)，本轮一键验证、窗口 fixture 演示、失败记录与未测边界见 [PHASE1_VALIDATION](docs/PHASE1_VALIDATION.md)。协议v2的审查修复、双端故障与完整第二轮证据见 [REVIEW_FOLLOWUP](docs/REVIEW_FOLLOWUP.md)。测试玩法仅在隔离测试构建启用，玩家导出仍为空注册。
 
 ```powershell

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { ownProfile, userDataRoot } from "../scripts/test-profile.mjs";
 import { terminateOwned } from "../scripts/run-with-server.mjs";
 const fixture = process.env.TEST_FIXTURE === "1";
 const gui = process.env.TEST_GUI === "1";
@@ -18,19 +18,30 @@ const players = [];
 const checks = [];
 const audits = [];
 const observations = [];
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+let stopping = false;
+process.on("message", message => { if (message?.type === "test-stop") stopping = true; });
+const profileRoot = await userDataRoot();
+const wait = async ms => {
+  if (stopping) throw Error("Test stop requested");
+  await new Promise(r => setTimeout(r, ms));
+  if (stopping) throw Error("Test stop requested");
+};
 function check(name, value) {
   assert.ok(value, name);
   checks.push(name);
   console.log("PASS", name);
 }
 async function launch(role) {
+  if (stopping) throw Error("Test stop requested before client launch");
   const dir = path.join(evidence, role);
   mkdirSync(dir);
   let output = "";
-  const child = spawn(
+  const owner = ownProfile(profileRoot);
+  const player = { role, dir, owner, child: null, id: 0, output: () => output };
+  players.push(player);
+  const child = player.child = spawn(
     process.env.GODOT,
-    [
+    owner.args([
       ...(gui
         ? ["--position", role === "Host" ? "20,30" : "500,120"]
         : ["--headless"]),
@@ -39,24 +50,24 @@ async function launch(role) {
       "--script",
       "res://tests/driver.gd",
       "--",
-      `--profile=test-${randomUUID()}`,
       `--evidence=${dir}`,
       `--name=${role}`,
       `--fixture=${fixture}`,
       ...(diagnostics ? ["--diagnostics=true"] : []),
-    ],
+    ]),
     { windowsHide: true },
   );
   child.stdout.on("data", (x) => (output += x));
   child.stderr.on("data", (x) => (output += x));
-  const player = { role, dir, child, id: 0, output: () => output };
-  players.push(player);
+  let launchError;
+  child.once("error", error => { launchError = error; });
   for (let i = 0; i < 200 && !existsSync(path.join(dir, "ready.json")); i++) {
+    if (launchError) throw launchError;
     if (child.exitCode !== null) throw Error(output);
     await wait(50);
   }
   assert.ok(existsSync(path.join(dir, "ready.json")), "client started");
-  player.profilePath = JSON.parse(readFileSync(path.join(dir, "ready.json"))).profile_path;
+  assert.equal(path.resolve(JSON.parse(readFileSync(path.join(dir, "ready.json"))).profile_path), path.resolve(owner.file), "client uses exact owned profile");
   return player;
 }
 async function command(p, action = "status", extra = {}) {
@@ -367,23 +378,26 @@ try {
     );
   }
 } finally {
+  const cleanupErrors = [];
   for (const p of players) {
     try {
-      if (p.child.exitCode === null) await command(p, "exit");
-    } catch {}
-    await terminateOwned(p.child, `test client ${p.role}`);
-    if (p.profilePath && path.basename(p.profilePath).startsWith("template-test-")) {
-      if (existsSync(p.profilePath)) unlinkSync(p.profilePath);
-    }
-    for (const name of ["command.json", "response.json", "ready.json"])
-      if (existsSync(path.join(p.dir, name))) unlinkSync(path.join(p.dir, name));
-    writeFileSync(path.join(p.dir, "process.log"), p.output());
+      try {
+        if (!stopping && p.child?.pid && p.child.exitCode === null) await command(p, "exit");
+      } catch {}
+      if (p.child?.pid) await terminateOwned(p.child, `test client ${p.role}`);
+      p.owner.cleanup();
+      for (const name of ["command.json", "response.json", "ready.json"])
+        if (existsSync(path.join(p.dir, name))) unlinkSync(path.join(p.dir, name));
+      writeFileSync(path.join(p.dir, "process.log"), p.output());
+    } catch (error) { cleanupErrors.push(error); }
   }
   writeFileSync(
     path.join(evidence, "result.json"),
     JSON.stringify({ fixture, diagnostics, fault, checks, audits,
       observations: observations.map(({label, ...values}) => ({label, ...numericOnly(values)})) }, null, 2),
   );
+  if (process.connected) process.disconnect();
+  if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "Network client cleanup failed");
 }
 for (const p of players)
   assert.ok(
