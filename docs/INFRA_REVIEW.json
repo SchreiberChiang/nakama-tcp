@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-18",
+  "branch": "codex/foundation-infra-review-20261018",
+  "baseline": "2a3e4882472486c3236eb3ffa84583ee40300a8a",
+  "status": "pass-with-explicit-cleanup-boundaries",
+  "production_source_changed": false,
+  "protocol_changed": false,
+  "primary_reproduction": {
+    "fixture": "Direct Node remains alive until timeout; detached owned descendant inherits stdout/stderr and exits after 2400ms",
+    "timeout_ms": 300,
+    "cleanup_grace_ms": 300,
+    "windows_old_ms": 2538,
+    "windows_fixed_ms": 926,
+    "wsl_linux_old_ms": 2508,
+    "wsl_linux_fixed_ms": 917,
+    "fixed_drain_grace_ms": 300,
+    "windows_non_detached_old_ms": 621,
+    "bounded_return_is_descendant_cleanup": false
+  },
+  "author_cold_reproduction": {
+    "platform": "Windows Godot 4.7.2",
+    "cache_absent": true,
+    "timeout_ms": 10000,
+    "elapsed_ms": 10362,
+    "missing_global_classes_and_session": true,
+    "primary_read_failure_log": true
+  },
+  "primary_targeted": {
+    "windows_node": "24.18.0",
+    "wsl_linux_node": "24.19.0",
+    "windows_process_checks": 8,
+    "wsl_linux_process_checks": 8,
+    "wsl_linux_profile_checks_without_godot": 12,
+    "wsl_linux_backend_or_godot_run": false
+  },
+  "primary_full_run": {
+    "platform": "Windows",
+    "node": "24.18.0",
+    "godot": "4.7.2.stable.steam.ed1daf0bf",
+    "typescript": "5.9.3",
+    "nakama": "3.41.0",
+    "exit_code": 0,
+    "initial_font_absent": true,
+    "initial_godot_cache_absent": true,
+    "profile_checks": 13,
+    "cold_copy_profile_checks": 13,
+    "process_checks": 8,
+    "cold_start_checks": 1,
+    "launcher_checks": 24,
+    "production_build": true,
+    "fixture_build": true,
+    "server_protocol": 34,
+    "lobby": 44,
+    "timeline": 108,
+    "sdk": 55,
+    "empty_clients": 10,
+    "fixture_clients": 62,
+    "diagnostics_clients": 58,
+    "input_fault_clients": 12,
+    "projection_fault_clients": 13,
+    "wechat_http_mocks": 7,
+    "source_audit_files": 162
+  },
+  "primary_real_backend_timeout": {
+    "intentional_outer_timeout_ms": 12000,
+    "expected_timeout_observed": true,
+    "verification_exit_code": 0,
+    "real_clients_logged_in": 2,
+    "completed_assertions_before_timeout": 19,
+    "cooperative_cleanup_unverified": false
+  },
+  "pack": {
+    "files": 78,
+    "bytes": 12146080,
+    "sha256": "072b30a81a6816f0221ffee49009e42eb9159548ec515f717ceaa1f60ae17d87",
+    "independently_rehashed": true,
+    "packed_scene": "login",
+    "empty_registry": true,
+    "has_fixture": false,
+    "bad_nodes": []
+  },
+  "cleanup_observed_after_all_tests": {
+    "network_runs": 6,
+    "default_profile_sha256_unchanged": true,
+    "owned_profiles_unchanged": true,
+    "owned_profiles_remaining": 0,
+    "ipc_remaining": 0,
+    "listening_test_ports": 0,
+    "godot_nakama_postgres_processes": 0,
+    "unknown_file_protection_tested_in_temporary_directory": true
+  },
+  "read_only_review": {"blocking_findings": 0, "executed_tests": false},
+  "limits": [
+    "Deadlines bound waiting under a responsive Node event loop, not real-time OS scheduling",
+    "exitConfirmed refers only to the directly spawned process",
+    "Pipe drain timeout fails; log may be partial and descendants remain unverified",
+    "Termination unconfirmed preserves owned profile and working directories; manual reconciliation is required",
+    "No guarantee for OS shutdown or hard termination of the outer owner"
+  ],
+  "not_tested": ["WeChat device/IDE", "mobile", "Web/WASM", "WAN", "long load", "subjective visual quality", "Linux complete Godot/backend/PCK suite", "macOS"]
+}
