@@ -280,6 +280,7 @@ func _run() -> void:
 	var transport := get_root().get_node("Session")
 	check(not transport._valid_catalog({"games": []}) and not transport._valid_catalog({"protocol_version": 0, "games": []}), "missing and old catalog version rejected")
 	check(not transport._valid_catalog({"protocol_version": 1, "games": []}), "v1 catalog rejected after command outcome protocol change")
+	check(not transport._valid_catalog({"protocol_version": 2, "games": []}), "v2 catalog rejected after request isolation protocol change")
 	check(transport._valid_catalog({"protocol_version": transport.PROTOCOL_VERSION, "games": []}), "current empty catalog is compatible")
 	check(transport.diagnostic_summary() == {"enabled": false}, "real Session diagnostics default off")
 	var initial_scope: String = transport.presentation_scope()

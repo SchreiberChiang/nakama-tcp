@@ -11,9 +11,10 @@ signal notice(message: String, is_error: bool)
 signal connection_changed(online: bool)
 signal command_results_updated(results: Array)
 signal room_failed(category: String)
+signal module_request_failed
 
-const PROTOCOL_VERSION := 2
-const COMMAND_STATUSES := ["applied", "expired", "rejected_full", "rejected_stale", "rejected_future", "rejected_not_playing", "rejected_round", "rejected_old_seq", "cancelled_round", "rejected_rate"]
+const PROTOCOL_VERSION := 3
+const COMMAND_STATUSES := ["applied", "expired", "rejected_full", "rejected_stale", "rejected_future", "rejected_not_playing", "rejected_round", "rejected_old_seq", "cancelled_round", "rejected_rate", "rejected_module_error"]
 var state_snapshot_max_age_ms := 350
 var _command_results: Array = []
 var diagnostics = preload("res://core/session_diagnostics.gd").new()
@@ -611,6 +612,12 @@ func _on_socket_error(error: Variant) -> void:
 	notice.emit("实时连接操作失败，请检查房间状态和客户端版本。", true)
 
 func _on_room_action_error(error: Variant) -> void:
+	if error is Dictionary and error.get("error") == "Module request failure":
+		# Request validation/selection failed before commit. Keep the shared room,
+		# transport and presentation; only exact command_results resolve a command.
+		module_request_failed.emit()
+		notice.emit("本次房间操作处理失败，可继续操作。", true)
+		return
 	if error is Dictionary and error.get("error") in ["Module failure", "Projection failure"]:
 		# Leave clears input and emits left before awaiting transport completion.
 		# The UI must release playing even if no further snapshot can arrive.

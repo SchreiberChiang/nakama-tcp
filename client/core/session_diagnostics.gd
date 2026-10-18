@@ -23,7 +23,7 @@ func reset() -> void:
 func observe_command_results(values: Array) -> void:
 	if not enabled: return
 	_command_results.clear()
-	var statuses := ["applied", "expired", "rejected_full", "rejected_stale", "rejected_future", "rejected_not_playing", "rejected_round", "rejected_old_seq", "cancelled_round", "rejected_rate"]
+	var statuses := ["applied", "expired", "rejected_full", "rejected_stale", "rejected_future", "rejected_not_playing", "rejected_round", "rejected_old_seq", "cancelled_round", "rejected_rate", "rejected_module_error"]
 	for item in values.slice(-32):
 		if not item is Dictionary or item.get("status") not in statuses: continue
 		var valid := true

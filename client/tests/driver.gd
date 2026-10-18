@@ -7,6 +7,7 @@ var working := false
 var last_input_seq := -1
 var module_failure := false
 var projection_failure := false
+var module_request_failures := 0
 
 func _initialize() -> void:
 	call_deferred("_start")
@@ -17,6 +18,7 @@ func _start() -> void:
 		quit(2)
 		return
 	DirAccess.make_dir_recursive_absolute(dir)
+	root.get_node("Session").module_request_failed.connect(func(): module_request_failures += 1)
 	root.get_node("Session").room_failed.connect(func(category):
 		module_failure = module_failure or category == "module_failure"
 		projection_failure = projection_failure or category == "projection_failure")
@@ -64,6 +66,9 @@ func _execute(command: Dictionary) -> void:
 			ui.find_child("Modules", true, false).select(0)
 		"input":
 			ui.module_view.click_pulse()
+			last_input_seq = session_node._seq
+		"request_error":
+			session_node.submit_input({"pulse": true, "test_request_error": true})
 			last_input_seq = session_node._seq
 		"stale_command":
 			session_node._seq += 1
@@ -132,6 +137,9 @@ func _status(session_node: Node) -> Dictionary:
 		"ready_self": ready, "score": score, "results": state.get("results", []).size(),
 		"user_id": session_node.user_id(), "snapshot": state, "own": own,
 		"last_input_seq": last_input_seq, "module_failure": module_failure, "projection_failure": projection_failure,
+		"module_request_failures": module_request_failures,
+		"presentation_scope": session_node.presentation_scope(), "socket_instance": session_node.socket.get_instance_id() if session_node.socket != null else 0,
+		"module_instance": ui.module_view.get_instance_id() if is_instance_valid(ui.module_view) else 0,
 		"presentation": presentation, "timeline": timeline,
 		"diagnostics": session_node.diagnostic_summary(),
 		"catalog": session_node.catalog.size(), "modules": ModuleRegistry.modules.size(),
