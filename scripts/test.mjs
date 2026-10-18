@@ -9,6 +9,7 @@ await prepareTests();
 if (process.argv.includes("--prepare-only")) {
   process.exit(0);
 }
+await import("../tests/profile-cleanup-regression.mjs");
 await import("../tests/process-timeout.mjs");
 await import("./test-cold-start.mjs");
 console.log(await checked(process.execPath, ["scripts/test-launcher-config.mjs"], {log: ".local/launcher-config.log"}));

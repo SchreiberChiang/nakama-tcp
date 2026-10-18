@@ -3,6 +3,8 @@
   "branch": "codex/foundation-infra-review-20261018",
   "baseline": "2a3e4882472486c3236eb3ffa84583ee40300a8a",
   "status": "pass-with-explicit-cleanup-boundaries",
+  "followup": "PROFILE_CLEANUP_REVIEW.md",
+  "subsequent_fixture_gap": "tests/test-profile.mjs consumed exitConfirmed=false and removed its ancestor temporary directory",
   "production_source_changed": false,
   "protocol_changed": false,
   "primary_reproduction": {

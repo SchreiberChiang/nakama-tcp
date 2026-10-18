@@ -2,6 +2,8 @@
 
 2026-10-18；基线 `2a3e4882472486c3236eb3ffa84583ee40300a8a`；交付分支 `codex/foundation-infra-review-20261018`。
 
+后续复核：Dot亲跑确认本报告两项原P2已修复，但发现 `tests/test-profile.mjs` 的外层预期失败断言吞掉退出未确认错误，finally仍删除夹具目录。此问题限测试外层，不否定运行器与冷启动修复；新增修复及复验见 [PROFILE_CLEANUP_REVIEW](PROFILE_CLEANUP_REVIEW.md)。以下计数仍为e886502对应历史运行证据。
+
 ## 范围与验收条件
 
 本轮处理Dot固定提交只读复核指出的两项P2：进程退出后继承stdout/stderr的后代可令close无限等待，以及干净Godot缓存下配置检查先于编辑器导入。先复现再修复，保留独占profile、严格错误门禁、空生产注册、资源隔离；Windows/Godot4.7.2完整套件与实际PCK重新执行。测试返回有界不等于所有后代已清理；无法确认直接进程退出时不能删除仍可能写入的配置。
