@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-18",
+  "baseline": "41518a7",
+  "status": "pass",
+  "environment": {
+    "os": "Windows x64",
+    "transport": "same-PC loopback HTTP/WebSocket",
+    "protocol_version": 2
+  },
+  "full_run": {
+    "exit_code": 0,
+    "production_build": true,
+    "fixture_build": true,
+    "server_protocol": 32,
+    "timeline": 67,
+    "sdk": 55,
+    "empty_clients": 10,
+    "fixture_default_clients": 56,
+    "fixture_diagnostics_clients": 58,
+    "input_fault_clients": 12,
+    "projection_fault_clients": 13,
+    "wechat_http_mock": 7,
+    "source_audit_files": 139
+  },
+  "final_targeted_run": {
+    "exit_code": 0,
+    "production_build": true,
+    "fixture_build": true,
+    "server_protocol": 33,
+    "timeline": 74,
+    "launcher_config_assertions": 24,
+    "fixture_default_clients": 56,
+    "input_fault_clients": 12,
+    "projection_fault_clients": 13,
+    "source_audit_files": 140
+  },
+  "pack": {
+    "files": 78,
+    "bytes": 12143056,
+    "sha256": "26af0b0d704b95320d919f78290063a95cade5d963e550f779b98ff9f5cc649b",
+    "packed_login": "login",
+    "empty_registry": true,
+    "has_fixture": false,
+    "bad_nodes": []
+  },
+  "cleanup": {
+    "completed_network_evidence_runs": 9,
+    "ready_command_response_absent": true,
+    "numeric_boolean_observations_only": true,
+    "result_identity_fields_absent": true,
+    "owned_random_profiles_removed_by_driver": true,
+    "owned_runtime_processes_remaining": 0,
+    "listening_test_ports": 0
+  },
+  "prior_failures": [
+    {
+      "stage": "timeline_initial",
+      "checks": 65,
+      "failures": 4,
+      "reason": "playable reserve recovery exceeded 2.2 seconds",
+      "resolved": true
+    },
+    {
+      "stage": "network_preflight",
+      "reason": "new summary syntax error before client launch",
+      "resolved": true
+    }
+  ],
+  "limitations": [
+    "Windows same-PC only",
+    "No WAN mobile WeChat Web Linux macOS production long-load verification",
+    "Command outcome ring bounded to 32; absent outcome means unknown",
+    "No automatic retries or transaction rollback; rejected sequence may become eligible after eviction if above accepted watermark",
+    "PCK desktop runtime evidence is not a standalone platform application",
+    "No new subjective visual smoothness claim"
+  ]
+}

@@ -1,5 +1,13 @@
 # Godot + Nakama 通用联机底座
 
+当前协议v3新增请求回调隔离与选择事务：两端一起升级，旧v2不能混连。范围、运行方法和本轮证据见[REQUEST_ISOLATION](docs/REQUEST_ISOLATION.md)。
+
+分阶段目标、当前状态、未测项与接续入口见 [PROJECT_STATUS](docs/PROJECT_STATUS.md)。本轮需求逐项验收与证据边界见 [ACCEPTANCE](docs/ACCEPTANCE.md)；时间轴两项审查与独立复验见 [TIMELINE_REVIEW](docs/TIMELINE_REVIEW.md)。
+
+后续交叉复核发现的超时等待及冷缓存导入问题、修复与最终复验见 [INFRA_REVIEW](docs/INFRA_REVIEW.md)。历史“全部验收通过”已补充限定，以最新报告为准。
+
+测试夹具外层在退出未确认时保留祖先目录的补充修复见 [PROFILE_CLEANUP_REVIEW](docs/PROFILE_CLEANUP_REVIEW.md)。可单独运行 `node tests/profile-cleanup-regression.mjs`；完整测试入口已包含该回归。
+
 不安装任何具体游戏的 Godot 4.7.2 客户端和 Nakama 3.41.0 权威房间服务端。默认大厅显示“尚未安装玩法”；登录页、大厅、房间、结算页均是普通 2D 控件，没有背景 3D、预览、音乐或隐藏玩法实例。
 
 保留设备/邮箱认证接口、会话、WebSocket、玩法目录、大厅、建房/加入、容量、成员列表、准备/开始、房主转移、退出/断线清理、服务端结算与留房再来一局。内存聊天控制器与服务端策略保留，当前 UI 不提供聊天面板。客户端不决定分数或赢家，安全校验仍在服务端。
@@ -53,12 +61,20 @@ node scripts/run-with-server.mjs $env:GODOT --path client -- --profile=local-one
 
 ## 验证与导出
 
+当前阶段与接手入口见 [PROJECT_STATUS](docs/PROJECT_STATUS.md)；大厅草稿保留、请求乱序隔离、验证结果与边界见 [PHASE2_LOBBY](docs/PHASE2_LOBBY.md)。
+
+自动测试、导出和PCK审计的本地配置隔离，以及时间轴保持后接受新权威的回归见 [PHASE3_TEST_ISOLATION](docs/PHASE3_TEST_ISOLATION.md)。单测使用 `node scripts/test-godot-unit.mjs lobby_state snapshot_timeline sdk_socket_lifecycle`；直接裸跑Godot脚本仍可能读写默认本地配置。
+
+阶段一协议与消费语义见 [PROTOCOL](docs/PROTOCOL.md)，呈现缓冲见 [SNAPSHOT_TIMELINE](docs/SNAPSHOT_TIMELINE.md)，本轮一键验证、窗口 fixture 演示、失败记录与未测边界见 [PHASE1_VALIDATION](docs/PHASE1_VALIDATION.md)。协议v2的审查修复、双端故障与完整第二轮证据见 [REVIEW_FOLLOWUP](docs/REVIEW_FOLLOWUP.md)。测试玩法仅在隔离测试构建启用，玩家导出仍为空注册。
+
 ```powershell
 node scripts/test.mjs
 node scripts/export.mjs
 ```
 
 `test.mjs` 构建空注册生产后端和独立测试后端，先跑 SDK 回归，再为两组后端分别启动两台真实 Godot 客户端。测试数据库、日志和 IPC 只写 `.local/`，不提交。测试运行有超时和错误日志门禁。设置 `$env:TEST_GUI='1'` 可改为窗口模式并在本地保存登录/大厅/房间/结算截图。
+
+完整测试会自动恢复固定字体并生成Godot全局类缓存，再运行配置检查；无需先手工打开编辑器。只验证准备流程可运行 `node scripts/test.mjs --prepare-only`；额外冷副本回归是 `node scripts/test-cold-start.mjs`，进程边界回归是 `node tests/process-timeout.mjs`。完整后端测试需要安装锁文件中的可选数据库平台包，不能将省略这些依赖后的启动失败计为通过。超时或输出管道排空超限均失败；若无法确认直接进程退出，会保留其配置/探针目录，不宣称后代已全部清理。
 
 `export.mjs` 生成 `artifacts/template.pck`，在空目录加载该 **实际 PCK** 并运行登录页，再检查文件清单和场景树。导出排除 `client/tests/`；服务端普通构建也不编译测试模块。PCK 和日志均不入仓库。PCK 是游戏数据包，**不含可独立运行的 Godot 平台可执行文件/WASM**；Web/桌面完整应用导出还需要对应官方 export templates。
 

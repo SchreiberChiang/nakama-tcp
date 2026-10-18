@@ -10,6 +10,17 @@ import {
 } from "./run-with-server.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+export function inputRuntimeArgs(env) {
+  const args = [];
+  for (const key of ["GAME_INPUT_WINDOW_TICKS", "GAME_STATE_TIMEOUT_TICKS"]) {
+    const value = env[key];
+    if (value === undefined) continue;
+    if (!/^(?:[1-9]\d{0,2})$/.test(value) || Number(value) > 300)
+      throw Error(`${key} must be an integer from 1 to 300`);
+    args.push("--runtime.env", `${key}=${value}`);
+  }
+  return args;
+}
 export function windowsPgStop(
   pg,
   databaseDir,
@@ -94,6 +105,7 @@ if (
   process.env.NAKAMA_TELEMETRY = "0";
   const data = process.env.NAKAMA_DATA_DIR || path.join(root, ".local");
   const snapshotRate = process.env.GAME_SNAPSHOT_RATE;
+  const diagnostics = process.env.GAME_DIAGNOSTICS;
 
   // Intentionally public LOCAL dev values, never production credentials.
   const pg = new EmbeddedPostgres({
@@ -142,6 +154,9 @@ if (
       !["10", "20", "30"].includes(snapshotRate)
     )
       throw Error("GAME_SNAPSHOT_RATE must be exactly 10, 20, or 30");
+    if (diagnostics !== undefined && !["0", "1"].includes(diagnostics))
+      throw Error("GAME_DIAGNOSTICS must be exactly 0 or 1");
+    const inputArgs = inputRuntimeArgs(process.env);
     await assertPortsFree();
     if (existsSync(path.join(data, "postgres", "postmaster.pid")))
       throw Error(
@@ -195,6 +210,8 @@ if (
         ...(snapshotRate === undefined
           ? []
           : ["--runtime.env", "GAME_SNAPSHOT_RATE=" + snapshotRate]),
+        ...(diagnostics === undefined ? [] : ["--runtime.env", "GAME_DIAGNOSTICS=" + diagnostics]),
+        ...inputArgs,
       ],
       { stdio: ["ignore", "pipe", "pipe"] },
     );

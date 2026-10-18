@@ -8,12 +8,11 @@ import {
 } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { checked } from "./process.mjs";
+import { checkedGodot } from "./test-profile.mjs";
 const pack = path.resolve("artifacts/template.pck");
 mkdirSync(".local/pack-check/empty-root", { recursive: true });
 const report = path.resolve(".local/pack-check/inventory.json");
-await checked(
-  process.env.GODOT,
+await checkedGodot(
   [
     "--headless",
     "--main-pack",

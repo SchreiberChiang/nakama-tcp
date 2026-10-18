@@ -3,12 +3,22 @@ extends Node
 signal authenticated
 signal logged_out
 signal rooms_updated(rooms: Array)
+signal rooms_state_changed
 signal joined
 signal left
 signal snapshot_received(snapshot: Dictionary)
 signal notice(message: String, is_error: bool)
 signal connection_changed(online: bool)
+signal command_results_updated(results: Array)
+signal room_failed(category: String)
+signal module_request_failed
 
+const PROTOCOL_VERSION := 3
+const COMMAND_STATUSES := ["applied", "expired", "rejected_full", "rejected_stale", "rejected_future", "rejected_not_playing", "rejected_round", "rejected_old_seq", "cancelled_round", "rejected_rate", "rejected_module_error"]
+var state_snapshot_max_age_ms := 350
+var _command_results: Array = []
+var diagnostics = preload("res://core/session_diagnostics.gd").new()
+var snapshot_received_msec := -1
 var chat = preload("res://core/session_chat.gd").new()
 var client: NakamaClient
 var socket: NakamaSocket
@@ -19,6 +29,9 @@ var match_id := ""
 var game_id := ""
 var snapshot: Dictionary = {}
 var rooms: Array = []
+var rooms_state := "idle" # idle/loading/ready/error; errors retain the last successful list.
+var rooms_have_success := false
+var _rooms_request := 0
 var catalog: Array = []
 var room_flow_version := 0
 var room_capacity_supported := false
@@ -56,6 +69,7 @@ func _ready() -> void:
 	host = str(_args.get("host", host))
 	port = int(_args.get("port", port))
 	tls = str(_args.get("tls", "false")) == "true"
+	diagnostics.set_enabled(arg("diagnostics", "false") == "true")
 	save_settings()
 
 func config_path() -> String:
@@ -79,12 +93,46 @@ func _valid_connection() -> bool:
 func _process(delta: float) -> void:
 	_input_elapsed += delta
 	if _input_elapsed >= 1.0 / 30.0:
-		_input_elapsed = 0.0
+		_input_elapsed = fmod(_input_elapsed, 1.0 / 30.0)
 		if connected and snapshot.get("phase") == "playing" and input_provider.is_valid():
-			submit_input(input_provider.call())
+			submit_input(input_provider.call(), "state")
+
+func _valid_catalog(data: Dictionary) -> bool:
+	return data.get("protocol_version") == PROTOCOL_VERSION and data.get("games") is Array
 
 func _valid_snapshot(data: Dictionary) -> bool:
-	return data.get("phase") in ["lobby", "countdown", "playing", "results"] and data.get("players") is Array and typeof(data.get("tick")) in [TYPE_INT, TYPE_FLOAT] and int(data.get("room_phase_version", 0)) == 2
+	return data.get("phase") in ["lobby", "countdown", "playing", "results"] and data.get("players") is Array and _natural(data.get("tick")) and _natural(data.get("round_id")) and int(data.get("room_phase_version", 0)) == 2 and data.get("protocol_version") == PROTOCOL_VERSION and ModuleRegistry.modules.has(str(data.get("game_id", ""))) and data.get("module_version") == ModuleRegistry.version(str(data.get("game_id", "")))
+
+func _natural(value: Variant) -> bool:
+	return typeof(value) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(value)) and float(value) >= 0 and float(value) <= 9007199254740991.0 and float(value) == floor(float(value))
+
+func presentation_scope() -> String:
+	return "%d:%d:%s" % [_generation, _room_epoch, match_id]
+
+func diagnostic_summary() -> Dictionary:
+	return diagnostics.summary(Time.get_ticks_msec())
+
+func configure_state_freshness(max_age_ms: int) -> bool:
+	if max_age_ms < 100 or max_age_ms > 1000: return false
+	state_snapshot_max_age_ms = max_age_ms
+	return true
+
+func state_input_fresh(now_msec: int) -> bool:
+	return snapshot_received_msec >= 0 and now_msec >= snapshot_received_msec and now_msec - snapshot_received_msec <= state_snapshot_max_age_ms
+
+## Independent bounded command outcomes, usable with diagnostics disabled.
+## An absent seq is unknown, never an inference from the highest applied seq.
+func command_results() -> Array:
+	return _command_results.duplicate(true)
+
+func _observe_command_results(values: Variant) -> void:
+	_command_results.clear()
+	if values is Array:
+		for item in values.slice(-32):
+			if not item is Dictionary or item.get("status") not in COMMAND_STATUSES: continue
+			if not _natural(item.get("seq")) or float(item.seq) > 2147483647 or not _natural(item.get("round_id")) or not _natural(item.get("tick")): continue
+			_command_results.append({"seq": int(item.seq), "round_id": int(item.round_id), "tick": int(item.tick), "status": item.status})
+	diagnostics.observe_command_results(_command_results)
 
 func login(display_name: String, email: String = "", password: String = "", create_account: bool = false) -> void:
 	if busy:
@@ -95,6 +143,7 @@ func login(display_name: String, email: String = "", password: String = "", crea
 	busy = true
 	chat.reset()
 	_generation += 1
+	_clear_rooms()
 	var generation := _generation
 	if socket != null:
 		socket.close()
@@ -162,6 +211,10 @@ func login(display_name: String, email: String = "", password: String = "", crea
 	var catalog_result := await call_rpc("game_catalog", {})
 	if generation != _generation:
 		return
+	if not _valid_catalog(catalog_result):
+		logout()
+		notice.emit("服务器协议不兼容或玩法目录读取失败，请更新客户端或重试。", true)
+		return
 	catalog = catalog_result.get("games", [])
 	room_flow_version = int(catalog_result.get("room_flow_version", 0))
 	room_capacity_supported = bool(catalog_result.get("room_capacity", false))
@@ -185,20 +238,66 @@ func call_rpc(rpc_id: String, payload: Dictionary = {}) -> Dictionary:
 	var parsed = JSON.parse_string(result.payload)
 	return parsed if parsed is Dictionary else {}
 
+func _clear_rooms() -> void:
+	_rooms_request += 1
+	rooms = []
+	rooms_state = "idle"
+	rooms_have_success = false
+
+func _invalidate_rooms() -> void:
+	_rooms_request += 1
+	if rooms_state == "loading":
+		rooms_state = "ready" if rooms_have_success else "idle"
+
+func _rooms_current(generation: int, epoch: int, request: int) -> bool:
+	return generation == _generation and epoch == _room_epoch and request == _rooms_request and connected and session != null and client != null and match_id.is_empty() and _joining_id.is_empty()
+
+func _valid_rooms(value: Variant) -> bool:
+	if not value is Array: return false
+	for room in value:
+		if not room is Dictionary or not room.get("match_id") is String or room.match_id.is_empty() or not room.get("label") is Dictionary or not _natural(room.get("size")): return false
+		var label: Dictionary = room.label
+		if not label.get("game_id") is String or label.game_id.is_empty() or not label.get("name") is String or label.get("phase") not in ["lobby", "countdown", "playing", "results"] or not _natural(label.get("capacity")): return false
+	return true
+
 func refresh_rooms() -> void:
+	if not connected or session == null or client == null or not match_id.is_empty() or not _joining_id.is_empty(): return
+	_rooms_request += 1
+	var request := _rooms_request
 	var generation := _generation
-	var result := await call_rpc("room_list", {})
-	if generation != _generation:
+	var epoch := _room_epoch
+	rooms_state = "loading"
+	rooms_state_changed.emit()
+	# State listeners may synchronously log out, join or start a newer refresh.
+	if not _rooms_current(generation, epoch, request): return
+	var result = await client.rpc_async(session, "room_list", "{}")
+	if not _rooms_current(generation, epoch, request): return
+	var parsed: Variant = null
+	if not result.is_exception():
+		# parse_string logs malformed response fragments; keep raw bodies private.
+		var parser := JSON.new()
+		if parser.parse(result.payload) == OK:
+			parsed = parser.data
+	if not parsed is Dictionary or not _valid_rooms(parsed.get("rooms")):
+		rooms_state = "error"
+		rooms_state_changed.emit()
 		return
-	rooms = result.get("rooms", [])
-	rooms_updated.emit(rooms)
+	rooms = parsed.rooms.duplicate(true)
+	rooms_have_success = true
+	rooms_state = "ready"
+	rooms_state_changed.emit()
+	if _rooms_current(generation, epoch, request):
+		rooms_updated.emit(rooms)
 
 func create_room(room_name: String, module_id: String, options: Dictionary = {}, capacity: int = 0) -> void:
 	if busy or not match_id.is_empty():
 		return
 	busy = true
+	_invalidate_rooms()
 	var generation := _generation
 	var room_epoch := _room_epoch
+	rooms_state_changed.emit()
+	if generation != _generation or room_epoch != _room_epoch or not busy: return
 	var payload := {"name": room_name.strip_edges().substr(0, 32), "game_id": module_id}
 	if capacity > 0 and room_capacity_supported:
 		payload["capacity"] = capacity
@@ -220,13 +319,22 @@ func join_room(id: String, module_id: String, known_game: bool = true) -> void:
 	var generation := _generation
 	var room_epoch := _room_epoch
 	_joining_id = id
+	_invalidate_rooms()
+	rooms_state_changed.emit()
+	if generation != _generation or room_epoch != _room_epoch or _joining_id != id: return
 	chat.enter_room(id)
 	_host_change_seq = 0
 	snapshot = {}
+	snapshot_received_msec = -1
+	diagnostics.reset()
+	_command_results.clear()
+	_input_elapsed = 0.0
 	game_id = module_id
 	var metadata := ModuleRegistry.join_metadata(module_id if known_game else "")
 	metadata.display_name = username
 	metadata.room_phase_version = str(2)
+	metadata.protocol_version = str(PROTOCOL_VERSION)
+	metadata.module_version = str(ModuleRegistry.version(module_id))
 	var result = await socket.join_match_async(id, metadata)
 	if generation != _generation or room_epoch != _room_epoch:
 		return
@@ -251,22 +359,35 @@ func leave_room() -> void:
 		return
 	chat.suspend_room()
 	_room_epoch += 1
+	_clear_rooms()
 	var generation := _generation
 	var room_epoch := _room_epoch
 	_joining_id = ""
 	busy = false
 	var old_match := match_id
+	var old_socket := socket
 	match_id = ""
 	_presence_session_id = ""
 	snapshot = {}
+	snapshot_received_msec = -1
+	diagnostics.reset()
+	_command_results.clear()
+	_input_elapsed = 0.0
 	input_provider = Callable()
-	if socket != null and connected and not old_match.is_empty():
-		await socket.leave_match_async(old_match)
-	if generation != _generation or room_epoch != _room_epoch:
+	# Begin the old departure before listeners may rejoin on the same socket.
+	# This helper sends synchronously until its first await, without delaying UI.
+	_finish_leave(old_socket, old_match, generation, room_epoch)
+	left.emit()
+
+func _finish_leave(old_socket: NakamaSocket, old_match: String, generation: int, room_epoch: int) -> void:
+	if old_socket != null and connected and not old_match.is_empty():
+		await old_socket.leave_match_async(old_match)
+	# Even a synchronously completed transport must not refresh before left.
+	await get_tree().process_frame
+	if generation != _generation or room_epoch != _room_epoch or old_socket != socket or not match_id.is_empty() or not _joining_id.is_empty():
 		return
 	if connected:
 		chat.show_lobby()
-	left.emit()
 	if connected:
 		refresh_rooms()
 
@@ -275,6 +396,7 @@ func logout() -> void:
 	var old_client := client
 	var old_session := session
 	_generation += 1
+	_clear_rooms()
 	_room_epoch += 1
 	_joining_id = ""
 	busy = false
@@ -282,6 +404,10 @@ func logout() -> void:
 	match_id = ""
 	_presence_session_id = ""
 	snapshot = {}
+	snapshot_received_msec = -1
+	diagnostics.reset()
+	_command_results.clear()
+	_input_elapsed = 0.0
 	input_provider = Callable()
 	if socket != null:
 		socket.close()
@@ -295,28 +421,23 @@ func logout() -> void:
 		var logout_result = await old_client.session_logout_async(old_session)
 
 func ready_up(value: bool) -> void:
-	var payload := {"ready": value}
-	if int(snapshot.get("room_flow_version", 0)) >= 1:
-		payload["round_id"] = int(snapshot.get("round_id", 0))
-	send(2, payload)
+	send(2, {"ready": value, "round_id": int(snapshot.get("round_id", 0))})
 
 func start_round() -> void:
-	send(3, {})
+	send(3, {"round_id": int(snapshot.get("round_id", 0))})
 
 func rematch() -> void:
-	if snapshot.get("phase") != "results":
-		return
-	if int(snapshot.get("room_flow_version", 0)) >= 1:
+	if snapshot.get("phase") == "results":
 		send(4, {"round_id": int(snapshot.get("round_id", 0))})
-	elif str(snapshot.get("host_id", "")) == user_id():
-		send(4, {})
-	# A legacy server does not support guest rematch. Waiting keeps membership;
-	# it must never be implemented as leave/rejoin or an unauthorized request.
 
-func submit_input(data: Dictionary) -> void:
-	if data.is_empty():
+func submit_input(data: Dictionary, kind: String = "command") -> void:
+	if data.is_empty() or kind not in ["state", "command"] or snapshot.get("phase") != "playing":
 		return
+	if kind == "state" and not state_input_fresh(Time.get_ticks_msec()): return
+	data = data.duplicate(true)
 	_seq += 1
+	data["kind"] = kind
+	data["client_tick"] = int(snapshot.get("tick", 0))
 	data["seq"] = _seq
 	data["round_id"] = int(snapshot.get("round_id", 0))
 	send(1, data)
@@ -331,9 +452,13 @@ func send(op: int, data: Dictionary) -> void:
 		var generation := _generation
 		var room_epoch := _room_epoch
 		var sending_match := match_id
-		var result = await socket.send_match_state_async(match_id, op, JSON.stringify(data))
+		var encoded := JSON.stringify(data)
+		diagnostics.record("send_attempt", encoded.to_utf8_buffer().size(), Time.get_ticks_msec())
+		var result = await socket.send_match_state_async(match_id, op, encoded)
 		if generation != _generation or room_epoch != _room_epoch or sending_match != match_id:
 			return
+		if not result.is_exception():
+			diagnostics.record("send_completed", encoded.to_utf8_buffer().size(), Time.get_ticks_msec())
 		if result.is_exception():
 			notice.emit("发送失败，请检查连接。", true)
 
@@ -383,6 +508,8 @@ func _on_chat_channel(message: Variant, generation: int) -> void:
 		"content": message.content}, generation)
 
 func _on_match_state(state: NakamaRTAPI.MatchData, expected_generation: int = -1) -> void:
+	var receiving_epoch := _room_epoch
+	var receiving_generation := _generation
 	if expected_generation >= 0 and expected_generation != _generation:
 		return
 	if state.match_id != match_id and state.match_id != _joining_id:
@@ -397,6 +524,7 @@ func _on_match_state(state: NakamaRTAPI.MatchData, expected_generation: int = -1
 		return
 	if state.op_code != 10:
 		return
+	diagnostics.record("snapshot_received", state.data.to_utf8_buffer().size(), Time.get_ticks_msec())
 	var parser := JSON.new()
 	if parser.parse(state.data) != OK:
 		return
@@ -404,25 +532,42 @@ func _on_match_state(state: NakamaRTAPI.MatchData, expected_generation: int = -1
 	if data is Dictionary:
 		if not _valid_snapshot(data):
 			return
-		if not snapshot.is_empty() and int(data.get("tick", -1)) < int(snapshot.get("tick", -1)):
+		if not snapshot.is_empty() and (int(data.round_id) < int(snapshot.round_id) or int(data.tick) <= int(snapshot.tick)):
 			return
+		snapshot_received_msec = Time.get_ticks_msec()
+		diagnostics.record("snapshot_consumed", state.data.to_utf8_buffer().size(), snapshot_received_msec)
 		snapshot = data
+		_observe_command_results(null)
+		for player in data.players:
+			if player is Dictionary and player.get("user_id") == user_id():
+				diagnostics.observe_input_ack(player)
+				diagnostics.observe_receipts(player.get("input_receipts"))
+				_observe_command_results(player.get("command_results"))
 		chat.observe_room(state.match_id, data, _generation)
 		game_id = str(data.get("game_id", game_id))
 		snapshot_received.emit(data)
+		if receiving_generation != _generation or receiving_epoch != _room_epoch: return
 		var change: Variant = data.get("host_change")
 		if change is Dictionary and int(change.get("seq", 0)) > _host_change_seq:
 			_host_change_seq = int(change.seq)
 			notice.emit("原房主已离开或失去连接，你已成为房主。" if str(change.get("host_id", "")) == user_id() else "原房主已离开或失去连接，房主已移交给仍在房间的玩家。", false)
+		if receiving_generation == _generation and receiving_epoch == _room_epoch:
+			command_results_updated.emit(command_results())
 
 func _on_presence(event: NakamaRTAPI.MatchPresenceEvent) -> void:
 	if event.match_id != match_id or session == null:
 		return
 	for presence in event.leaves:
 		if presence.user_id == user_id() and presence.session_id == _presence_session_id:
+			_clear_rooms()
 			match_id = ""
 			_presence_session_id = ""
 			snapshot = {}
+			snapshot_received_msec = -1
+			diagnostics.reset()
+			_command_results.clear()
+			_input_elapsed = 0.0
+			_room_epoch += 1
 			input_provider = Callable()
 			chat.show_lobby()
 			left.emit()
@@ -434,6 +579,7 @@ func _on_closed() -> void:
 	if not connected:
 		return
 	_generation += 1
+	_clear_rooms()
 	_room_epoch += 1
 	_joining_id = ""
 	busy = false
@@ -444,6 +590,10 @@ func _on_closed() -> void:
 	match_id = ""
 	_presence_session_id = ""
 	snapshot = {}
+	snapshot_received_msec = -1
+	diagnostics.reset()
+	_command_results.clear()
+	_input_elapsed = 0.0
 	input_provider = Callable()
 	connection_changed.emit(false)
 	logged_out.emit()
@@ -461,7 +611,21 @@ func _on_socket_error(error: Variant) -> void:
 		return
 	notice.emit("实时连接操作失败，请检查房间状态和客户端版本。", true)
 
-func _on_room_action_error(_error: Variant) -> void:
+func _on_room_action_error(error: Variant) -> void:
+	if error is Dictionary and error.get("error") == "Module request failure":
+		# Request validation/selection failed before commit. Keep the shared room,
+		# transport and presentation; only exact command_results resolve a command.
+		module_request_failed.emit()
+		notice.emit("本次房间操作处理失败，可继续操作。", true)
+		return
+	if error is Dictionary and error.get("error") in ["Module failure", "Projection failure"]:
+		# Leave clears input and emits left before awaiting transport completion.
+		# The UI must release playing even if no further snapshot can arrive.
+		input_provider = Callable()
+		leave_room()
+		room_failed.emit("module_failure" if error.error == "Module failure" else "projection_failure")
+		notice.emit("房间模块或快照不可用，已退出房间。", true)
+		return
 	notice.emit("房间操作被拒绝，请检查房主、准备状态和轮次。", true)
 
 func _exit_tree() -> void:

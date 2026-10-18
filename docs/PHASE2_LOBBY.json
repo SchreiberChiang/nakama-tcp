@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-18",
+  "stage": "phase2-lobby",
+  "branch": "codex/foundation-phase2-lobby-20261018",
+  "baseline": "a7b2fa76181dca6dd9b8af4740e8fa8adb7ba979",
+  "status": "pass",
+  "protocol_version": 2,
+  "production_timeline_changed": false,
+  "server_changed": false,
+  "primary_baseline_reproduction": {"checks": 4, "expected_failures": 4, "exit_code": 1},
+  "author_report": {"lobby_checks": 44, "timeline_checks": 97, "failures": 0},
+  "read_only_review": {"blocking_findings": 0, "executed_tests": false},
+  "primary_initial_timeline_retest": {
+    "checks": 97,
+    "failures": 1,
+    "cause": "Old immediate-departure fixture lacked session/client; populated a valid fake SDK context without changing the original ordering assertions or production gates."
+  },
+  "primary_full_run": {
+    "exit_code": 0,
+    "production_build": true,
+    "fixture_build": true,
+    "launcher_assertions": 24,
+    "server_protocol": 33,
+    "lobby": 44,
+    "timeline_and_session": 97,
+    "sdk": 55,
+    "empty_clients": 10,
+    "fixture_clients": 62,
+    "diagnostics_clients": 58,
+    "input_fault_clients": 12,
+    "projection_fault_clients": 13,
+    "wechat_http_mocks": 7,
+    "source_audit_files": 147,
+    "raw_response_sentinel_leaked": false
+  },
+  "pack": {
+    "files": 78,
+    "bytes": 12146080,
+    "sha256": "b8f5a6c27dc42b861af240207e2a5e45982f60b047102f95dfb7b795135d1469",
+    "hash_independently_rechecked": true,
+    "empty_registry": true,
+    "has_fixture": false,
+    "bad_nodes": [],
+    "packed_scene": "login"
+  },
+  "cleanup": {
+    "network_runs": 5,
+    "ipc_remaining": 0,
+    "observations_safe": true,
+    "listening_test_ports": 0,
+    "owned_runtime_processes": 0,
+    "legacy_default_profile_untouched": "not established; some existing test entry points still use default profile"
+  },
+  "external_phase1_review": {
+    "provenance": "Dot report manually forwarded by user; additional script and raw artifacts not obtained",
+    "commit": "a7b2fa76181dca6dd9b8af4740e8fa8adb7ba979",
+    "baseline": "2eaea2d2802af549420add49c014fe35326814ce",
+    "environment": "Linux Godot 4.6.3",
+    "reported_current_suite": {"checks": 97, "failures": 0},
+    "reported_old_suite": {"checks": 74, "failures": 0},
+    "reported_current_tests_old_core": {"checks": 97, "failures": 4},
+    "reported_extra_current_core": {"checks": 66, "failures": 0},
+    "reported_extra_old_core": {"checks": 66, "failures": 9},
+    "extra_checks_rerun_by_primary": false,
+    "backend_and_pack_rerun_by_dot": false
+  },
+  "scope": "Windows same-PC headless loopback; manually controlled SDK callbacks for failure/reordering/reentrancy",
+  "not_tested": ["phase2 Dot/Claude review", "phase2 Linux/macOS", "WeChat IDE", "WeChat device", "mobile", "Web/WASM", "WAN", "real packet loss/reordering", "long load", "subjective visuals"],
+  "limits": [
+    "Draft preservation is a lobby-refresh guarantee, not persistent storage or latest draft restoration after entering/leaving a room",
+    "Retained room lists may be stale; the server still decides join admission",
+    "New refreshes during create can update the current lobby; join invalidates pending responses",
+    "No prediction/replay, original-session recovery, delta sync or transport changes",
+    "Legacy unit and PCK entry points may write the default local profile; no pre-run hash was captured"
+  ]
+}

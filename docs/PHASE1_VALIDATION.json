@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-18",
+  "baseline": "37e7ca8",
+  "status": "pass",
+  "environment": {
+    "os": "Windows x64",
+    "transport": "same-PC loopback HTTP/WebSocket",
+    "node": "24.18.0",
+    "godot": "4.7.2.stable.steam.ed1daf0bf",
+    "nakama": "3.41.0+cab8af58",
+    "typescript": "5.9.3"
+  },
+  "passed": {
+    "server_protocol": 16,
+    "timeline_diagnostics": 38,
+    "sdk": 55,
+    "empty_clients": 10,
+    "fixture_clients": 49,
+    "wechat_http_mock": 7,
+    "actual_pck": true,
+    "source_audit": true,
+    "source_audit_files": 137
+  },
+  "pack": {
+    "files": 78,
+    "bytes": 12138960,
+    "sha256": "d47fdbbaf498ff88ad67bdded4701a44e205d13eab2a7c3880ef1376359804ba",
+    "actual_pack_login": "login",
+    "empty_registry": true,
+    "has_fixture": false,
+    "bad_nodes": []
+  },
+  "sample": {
+    "authority_positions": [
+      {
+        "x": 44,
+        "y": 0
+      },
+      {
+        "x": 0,
+        "y": 40
+      }
+    ],
+    "snapshot_consumed": {
+      "count": 104,
+      "last_age_ms": 10,
+      "last_interval_ms": 37,
+      "window_bytes": 157606,
+      "window_interval_max_ms": 72,
+      "window_interval_mean_ms": 49.4854368932039,
+      "window_samples": 104
+    },
+    "presentation": {
+      "enabled": true,
+      "frame_callback_interval_ms": 6.06060606060606,
+      "gpu_missing_reason": "No GPU timing source is installed",
+      "gpu_ms": null,
+      "sample_cpu_usec": 23,
+      "snapshot_receive_age_ms": 10,
+      "timeline": {
+        "buffer_depth_ms": 933.333333333333,
+        "buffer_samples": 20,
+        "extrapolated_frames": 0,
+        "extrapolation_limit_ms": 33,
+        "interpolation_delay_ms": 117,
+        "late_snapshot_drops": 0,
+        "latest_snapshot_render_gap_ms": 111.431,
+        "latest_snapshot_tick": 152,
+        "playback_rate": 1,
+        "presentation_state": "interpolating",
+        "recovery_age_ms": 0,
+        "recovery_debt_ms": 0,
+        "render_tick": 148.65707,
+        "sim_hz": 30,
+        "snapshot_hz": 20,
+        "timeline_resets": 0,
+        "underrun_frames": 0
+      }
+    },
+    "server_received": 27,
+    "server_accepted": 25,
+    "server_consumed": 25,
+    "server_sent": 103
+  },
+  "injection": {
+    "kind": "deterministic application timeline injection",
+    "jitter_ms": [
+      0,
+      80
+    ],
+    "delivery_pause_ms": 700,
+    "render_callback_ms": 100,
+    "wan": false
+  },
+  "not_run": [
+    "WAN/public production",
+    "real network packet loss/reorder",
+    "Web/WASM browser",
+    "WeChat devtools/phone",
+    "iOS/Android",
+    "Linux/macOS",
+    "long load",
+    "GPU timing",
+    "RTT same-clock roundtrip",
+    "subjective dynamic smoothness"
+  ],
+  "failures_corrected": [
+    "baseline source audit initially covered zero files; corrected independent Git index covered127",
+    "first phase1 preloaded autoload compile cycle failed error gate; fixed and reran",
+    "client consumed/completed bytes initially zero; corrected actual UTF8 byte counts and reran dual clients plus actual PCK"
+  ],
+  "evidence": {
+    "log": ".local/phase1-gui-final.log",
+    "empty": ".local/network-empty-1792299187077",
+    "fixture": ".local/network-fixture-1792299319727",
+    "pack": ".local/pack-check/result.json",
+    "final_regression_log": ".local/phase1-byte-fix.log"
+  },
+  "isolation": {
+    "production_access": false,
+    "external_repository_modified": false,
+    "owned_ports_released": true,
+    "phase1_test_profiles_removed": true,
+    "baseline_profiles_retained_locally": true,
+    "result_diagnostics_numeric_only": true,
+    "completed_ipc_removed": true
+  }
+}

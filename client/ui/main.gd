@@ -21,6 +21,10 @@ var _start_button: Button
 var _rematch_button: Button
 var _join_buttons: Array[Button] = []
 var _notice_text := ""
+var _rooms_body: VBoxContainer
+var _draft_name := "新房间"
+var _draft_capacity := 4
+var _draft_module := ""
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
@@ -33,7 +37,9 @@ func _ready() -> void:
 	Session.left.connect(_show_lobby)
 	Session.joined.connect(_show_room)
 	Session.rooms_updated.connect(func(_rooms):
-		if page == "lobby": _show_lobby())
+		if page == "lobby": _render_rooms())
+	Session.rooms_state_changed.connect(func():
+		if page == "lobby": _render_rooms())
 	Session.snapshot_received.connect(_on_snapshot)
 	Session.notice.connect(func(message, _error):
 		_notice_text = message
@@ -95,6 +101,9 @@ func _reset(next_page: String, title: String) -> void:
 	status.name = "Status"
 
 func _show_login() -> void:
+	_draft_name = "新房间"
+	_draft_capacity = 4
+	_draft_module = ""
 	_page_key = ""
 	_reset("login", "Godot + Nakama · 登录")
 	_name = _field("PlayerName", "显示名称", Session.username)
@@ -125,13 +134,22 @@ func _show_login() -> void:
 func _show_lobby() -> void:
 	if not Session.connected or not Session.match_id.is_empty() or _closing:
 		return
+	if page == "lobby" and is_instance_valid(_room_name) and is_instance_valid(_capacity) and is_instance_valid(_modules):
+		_draft_name = _room_name.text
+		_draft_capacity = int(_capacity.value)
+		if _modules.selected >= 0 and _modules.selected < _available.size():
+			_draft_module = str(_available[_modules.selected].id)
 	_page_key = ""
 	_reset("lobby", "大厅")
 	_button("Logout", "注销", Session.logout)
 	_button("Refresh", "刷新房间", Session.refresh_rooms)
+	_rooms_body = VBoxContainer.new()
+	_rooms_body.name = "RoomList"
+	body.add_child(_rooms_body)
+	_render_rooms()
 	_available.clear()
 	for entry in Session.catalog:
-		if ModuleRegistry.modules.has(str(entry.get("id", ""))):
+		if ModuleRegistry.compatible(entry):
 			_available.append(entry)
 	if _available.is_empty():
 		var empty := _label("尚未安装玩法。请按 docs/ADDING_GAME.md 同时注册客户端和服务端模块。")
@@ -142,24 +160,48 @@ func _show_lobby() -> void:
 	_modules.name = "Modules"
 	for entry in _available:
 		_modules.add_item(str(entry.get("title", entry.id)))
+		if str(entry.id) == _draft_module:
+			_modules.select(_modules.item_count - 1)
 	body.add_child(_modules)
-	_room_name = _field("RoomName", "房间名", "新房间")
+	_room_name = _field("RoomName", "房间名", _draft_name)
 	_capacity = SpinBox.new()
 	_capacity.name = "Capacity"
 	_capacity.min_value = 2
 	_capacity.max_value = 8
-	_capacity.value = 4
+	_capacity.value = _draft_capacity
 	body.add_child(_capacity)
 	_button("Create", "创建房间", func():
 		var entry: Dictionary = _available[_modules.selected]
 		Session.create_room(_room_name.text, str(entry.id), {}, int(_capacity.value)))
+
+func _render_rooms() -> void:
+	if not is_instance_valid(_rooms_body): return
+	for child in _rooms_body.get_children():
+		_rooms_body.remove_child(child)
+		child.queue_free()
+	_join_buttons.clear()
+	var state := Label.new()
+	state.name = "RoomListState"
+	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	match Session.rooms_state:
+		"loading": state.text = "正在刷新房间；下方为上次列表，可能已过期。" if Session.rooms_have_success else "正在加载房间列表……"
+		"error": state.text = "刷新失败；下方保留上次列表，可能已过期。请点击刷新房间重试。" if Session.rooms_have_success else "房间列表加载失败。请点击刷新房间重试。"
+		"ready": state.text = "暂无房间。" if Session.rooms.is_empty() else "房间列表已更新。"
+		_: state.text = "房间列表尚未加载。"
+	_rooms_body.add_child(state)
 	for room in Session.rooms:
 		var label: Dictionary = room.get("label", {})
 		var id := str(label.get("game_id", ""))
 		if not ModuleRegistry.modules.has(id):
 			continue
-		var button := _button("Join" + str(_join_buttons.size()), "%s · %s/%s · 加入" % [str(label.get("name", "房间")), str(room.get("size", 0)), str(label.get("capacity", 8))], func(): Session.join_room(str(room.match_id), id))
+		var button := Button.new()
+		button.name = "Join" + str(_join_buttons.size())
+		button.text = "%s · %s/%s · 加入" % [str(label.get("name", "房间")), str(room.get("size", 0)), str(label.get("capacity", 8))]
+		button.custom_minimum_size.y = 44
+		button.pressed.connect(func(): Session.join_room(str(room.match_id), id))
+		_rooms_body.add_child(button)
 		button.disabled = label.get("phase") != "lobby"
+		button.set_meta("joinable", label.get("phase") == "lobby")
 		_join_buttons.append(button)
 
 func _show_room() -> void:
@@ -188,6 +230,7 @@ func _on_snapshot(data: Dictionary) -> void:
 				_label("缺少客户端模块，请退出房间并安装匹配模块。")
 			else:
 				module_view.configure(Session.user_id())
+				module_view.set_presentation_scope(Session.presentation_scope())
 				module_view.custom_minimum_size.y = 180
 				module_view.exit_requested.connect(Session.leave_room)
 				body.add_child(module_view)
@@ -226,7 +269,7 @@ func _process(_delta: float) -> void:
 			button.disabled = Session.busy
 	for button in _join_buttons:
 		if is_instance_valid(button):
-			button.disabled = Session.busy or button.disabled
+			button.disabled = Session.busy or not bool(button.get_meta("joinable", false))
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:

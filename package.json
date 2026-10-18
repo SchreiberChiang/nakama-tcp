@@ -10,7 +10,7 @@
     "build": "node scripts/build.mjs",
     "start": "node scripts/dev-server.mjs",
     "test": "node scripts/test.mjs",
-    "test:network": "node scripts/run-with-server.mjs node tests/network.mjs",
+    "test:network": "node scripts/run-with-server.mjs --test-cooperative-stop node tests/network.mjs",
     "export": "node scripts/export.mjs"
   },
   "dependencies": {

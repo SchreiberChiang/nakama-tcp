@@ -4,6 +4,10 @@ var ui: Control
 var dir := ""
 var last_command := 0
 var working := false
+var last_input_seq := -1
+var module_failure := false
+var projection_failure := false
+var module_request_failures := 0
 
 func _initialize() -> void:
 	call_deferred("_start")
@@ -14,13 +18,17 @@ func _start() -> void:
 		quit(2)
 		return
 	DirAccess.make_dir_recursive_absolute(dir)
+	root.get_node("Session").module_request_failed.connect(func(): module_request_failures += 1)
+	root.get_node("Session").room_failed.connect(func(category):
+		module_failure = module_failure or category == "module_failure"
+		projection_failure = projection_failure or category == "projection_failure")
 	if root.get_node("Session").arg("fixture") == "true":
 		ModuleRegistry.register_module("fixture", func(): return load("res://tests/fixture_view.gd").new())
 	ui = load("res://Main.tscn").instantiate()
 	root.add_child(ui)
 	await process_frame
 	await process_frame
-	_write("ready.json", {"ready": true})
+	_write("ready.json", {"ready": true, "profile_path": ProjectSettings.globalize_path(root.get_node("Session").config_path())})
 
 func _process(_delta: float) -> bool:
 	if dir.is_empty() or working:
@@ -52,10 +60,30 @@ func _execute(command: Dictionary) -> void:
 			if ok: button.pressed.emit()
 		"join":
 			session_node.join_room(str(command.room), "fixture")
+		"lobby_draft":
+			ui.find_child("RoomName", true, false).text = "Refresh draft"
+			ui.find_child("Capacity", true, false).value = 6
+			ui.find_child("Modules", true, false).select(0)
 		"input":
-			session_node.submit_input({"pulse": true})
+			ui.module_view.click_pulse()
+			last_input_seq = session_node._seq
+		"request_error":
+			session_node.submit_input({"pulse": true, "test_request_error": true})
+			last_input_seq = session_node._seq
+		"stale_command":
+			session_node._seq += 1
+			last_input_seq = session_node._seq
+			session_node.send(1, {"seq": last_input_seq, "round_id": session_node.snapshot.round_id, "kind": "command", "client_tick": maxi(0, int(session_node.snapshot.tick) - 100), "pulse": true})
+		"create":
+			session_node.create_room("Isolated fault test", "fixture", command.get("options", {}), 2)
+		"provider":
+			session_node.input_provider = ui.module_view.collect_input if command.get("enabled", true) else Callable()
+		"move":
+			ui.module_view.set_test_direction(Vector2(float(command.get("x", 0)), float(command.get("y", 0))))
 		"raw":
 			session_node.send(int(command.op), command.payload)
+		"diagnostics":
+			session_node.diagnostics.set_enabled(bool(command.get("enabled", false)))
 		"screenshot":
 			await RenderingServer.frame_post_draw
 			root.get_texture().get_image().save_png(dir.path_join(str(command.get("name", "screen")) + ".png"))
@@ -84,16 +112,36 @@ func _status(session_node: Node) -> Dictionary:
 	var score := 0
 	var ready := false
 	var connected_count := 0
+	var own: Dictionary = {}
 	for player in state.get("players", []):
 		if player.get("connected", false): connected_count += 1
 		if player.get("user_id") == session_node.user_id():
+			own = player
 			score = int(player.get("score", 0))
 			ready = bool(player.get("ready", false))
+	var presentation: Dictionary = {}
+	var draft_valid := false
+	if ui.page == "lobby" and ui.find_child("RoomName", true, false) != null:
+		draft_valid = ui.find_child("RoomName", true, false).text == "Refresh draft" and ui.find_child("Capacity", true, false).value == 6 and ui._available[ui.find_child("Modules", true, false).selected].id == "fixture"
+	var timeline: Dictionary = {}
+	if is_instance_valid(ui.module_view):
+		for id in ui.module_view.poses:
+			var pose: Dictionary = ui.module_view.poses[id]
+			presentation[id] = {"x": pose.position.x, "y": pose.position.y}
+		timeline = ui.module_view.presentation_diagnostics()
 	return {"page": ui.page, "connected": session_node.connected, "busy": session_node.busy,
+		"rooms_state": session_node.rooms_state, "room_count": session_node.rooms.size(), "lobby_draft_valid": draft_valid,
 		"room": session_node.match_id, "phase": state.get("phase", ""),
 		"round": int(state.get("round_id", 0)), "members": connected_count,
 		"host_self": state.get("host_id", "") == session_node.user_id() and not session_node.user_id().is_empty(),
 		"ready_self": ready, "score": score, "results": state.get("results", []).size(),
+		"user_id": session_node.user_id(), "snapshot": state, "own": own,
+		"last_input_seq": last_input_seq, "module_failure": module_failure, "projection_failure": projection_failure,
+		"module_request_failures": module_request_failures,
+		"presentation_scope": session_node.presentation_scope(), "socket_instance": session_node.socket.get_instance_id() if session_node.socket != null else 0,
+		"module_instance": ui.module_view.get_instance_id() if is_instance_valid(ui.module_view) else 0,
+		"presentation": presentation, "timeline": timeline,
+		"diagnostics": session_node.diagnostic_summary(),
 		"catalog": session_node.catalog.size(), "modules": ModuleRegistry.modules.size(),
 		"empty_state": ui.find_child("EmptyState", true, false) != null,
 		"active_module": is_instance_valid(ui.module_view), "bad_nodes": bad,
