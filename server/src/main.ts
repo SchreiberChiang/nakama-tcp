@@ -20,6 +20,8 @@ interface Member extends ChatMember {
   controls: number;
   strikes: number;
   selection: any;
+  requestErrorTick?: number;
+  requestLogTicks?: { [category: string]: number };
 }
 interface RoomState extends ChatRoomState {
   game_id: string;
@@ -562,12 +564,107 @@ function invalid(
     );
   if (m.strikes >= 8) d.matchKick([m.presence]);
 }
+// Request transactions accept only bounded finite plain-data trees. Inspect
+// descriptors without invoking getters, toJSON hooks or arbitrary serialization.
+function cloneRequestData(value: any): any {
+  var seen: any[] = [], nodes = 0, bytes = 0;
+  var add = function (amount: number): void {
+    bytes += amount;
+    if (bytes > 65536) throw Error("Request clone limit");
+  };
+  var visit = function (v: any, depth: number): any {
+    if (++nodes > 10000 || depth > 32) throw Error("Request clone limit");
+    if (v === null || typeof v === "boolean" || typeof v === "string" || finite(v)) {
+      add(utf8Bytes(JSON.stringify(v)));
+      return v;
+    }
+    if (!v || typeof v !== "object") throw Error("Unsupported request data");
+    if (seen.indexOf(v) >= 0) throw Error("Request data must be a tree");
+    seen.push(v);
+    var array = Array.isArray(v), proto = Object.getPrototypeOf(v);
+    if (array ? proto !== Array.prototype : proto !== Object.prototype && proto !== null)
+      throw Error("Unsupported request prototype");
+    var symbols = (Object as any).getOwnPropertySymbols;
+    if (symbols && symbols(v).length) throw Error("Unsupported request keys");
+    var names = Object.getOwnPropertyNames(v), result: any = array ? [] : {};
+    if (names.length > 10001 || (array && v.length > 10000)) throw Error("Request clone limit");
+    if (array && names.length !== v.length + 1) throw Error("Sparse request array");
+    add(2);
+    var count = 0;
+    names.forEach(function (key) {
+      if (array && key === "length") return;
+      if (key === "__proto__" || key === "constructor" || key === "prototype")
+        throw Error("Unsafe request key");
+      if (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= v.length))
+        throw Error("Unsupported request array key");
+      var descriptor = Object.getOwnPropertyDescriptor(v, key)!;
+      if (!descriptor.enumerable || !("value" in descriptor)) throw Error("Unsupported request descriptor");
+      if (count++) add(1);
+      if (!array) add(utf8Bytes(JSON.stringify(key)) + 1);
+      result[key] = visit(descriptor.value, depth + 1);
+    });
+    return result;
+  };
+  return visit(value, 0);
+}
+function requestFailure(
+  d: nkruntime.MatchDispatcher, s: RoomState, m: Member, tick: number,
+  category: string, logger?: nkruntime.Logger,
+): void {
+  if (s.diagnosticsEnabled) {
+    bump(m.diagnostics, "module_request_error", 1);
+    bump(m.diagnostics, category, 1);
+  }
+  var logTicks = m.requestLogTicks || (m.requestLogTicks = {});
+  if (logTicks[category] === undefined || tick - logTicks[category] >= TICK_RATE) {
+    logTicks[category] = tick;
+    if (logger && typeof logger.warn === "function") logger.warn("Module request failure: " + category);
+  }
+  if (m.requestErrorTick === undefined || tick - m.requestErrorTick >= TICK_RATE) {
+    m.requestErrorTick = tick;
+    d.broadcastMessage(11, JSON.stringify({ error: "Module request failure", message: "Module request failure" }), [m.presence]);
+  }
+}
+function requestRejected(d: nkruntime.MatchDispatcher, m: Member, reason: string): void {
+  d.broadcastMessage(11, JSON.stringify({ error: reason, message: "Request rejected" }), [m.presence]);
+}
+function applySelection(
+  d: nkruntime.MatchDispatcher, s: RoomState, m: Member, id: string,
+  selection: any, tick: number, logger?: nkruntime.Logger,
+): boolean {
+  var game = GAMES[s.game_id], validation: any, stored: any, candidate: any, selectRequest: any;
+  if (!game.validateSelection || !game.select) return false;
+  try {
+    validation = cloneRequestData(selection);
+    stored = cloneRequestData(selection);
+    selectRequest = cloneRequestData(selection);
+  } catch (e) { requestFailure(d, s, m, tick, "request_clone_error", logger); return false; }
+  var valid: any;
+  try { valid = game.validateSelection(validation); }
+  catch (e) { requestFailure(d, s, m, tick, "validate_selection_error", logger); return false; }
+  if (typeof valid !== "boolean") { requestFailure(d, s, m, tick, "validate_selection_error", logger); return false; }
+  if (!valid) { requestRejected(d, m, "Invalid player selection"); return false; }
+  try { candidate = cloneRequestData(s.game); }
+  catch (e) { requestFailure(d, s, m, tick, "request_clone_error", logger); return false; }
+  var resetReady: any;
+  try { resetReady = game.select(candidate, id, selectRequest); }
+  catch (e) { requestFailure(d, s, m, tick, "select_error", logger); return false; }
+  if (typeof resetReady !== "boolean") { requestFailure(d, s, m, tick, "select_error", logger); return false; }
+  try { candidate = cloneRequestData(candidate); }
+  catch (e) { requestFailure(d, s, m, tick, "request_clone_error", logger); return false; }
+  // A second copy prevents retained callback references from mutating live state.
+  s.game = candidate;
+  m.selection = stored;
+  if (resetReady) m.ready = false;
+  return true;
+}
 function handleMessage(
   nk: nkruntime.Nakama,
   d: nkruntime.MatchDispatcher,
   s: RoomState,
   tick: number,
   msg: nkruntime.MatchMessage,
+  logger?: nkruntime.Logger,
 ): void {
   var m = s.members[msg.sender.userId];
   if (!m || m.presence.sessionId !== msg.sender.sessionId) return;
@@ -613,7 +710,7 @@ function handleMessage(
       Math.floor(p.seq) !== p.seq ||
       !finite(p.round_id) ||
       Math.floor(p.round_id) !== p.round_id ||
-      !GAMES[s.game_id].validateInput(p)
+      p.round_id < 1
     ) {
       invalid(d, m, "Invalid input schema");
       return;
@@ -633,6 +730,25 @@ function handleMessage(
     if (p.client_tick < tick - s.inputWindow) { reject("late", "rejected_stale"); return; }
     if (p.client_tick > tick + 2) { reject("future", "rejected_future"); return; }
     if (p.kind === "command" && m.commands.length >= 8) { reject("queue_full", "rejected_full"); return; }
+    var validation: any, valid: any;
+    try { validation = cloneRequestData(p); }
+    catch (e) {
+      if (p.kind === "command") commandResult(m, p, tick, "rejected_module_error");
+      requestFailure(d, s, m, tick, "request_clone_error", logger);
+      return;
+    }
+    try { valid = GAMES[s.game_id].validateInput(validation); }
+    catch (e) {
+      if (p.kind === "command") commandResult(m, p, tick, "rejected_module_error");
+      requestFailure(d, s, m, tick, "validate_input_error", logger);
+      return;
+    }
+    if (typeof valid !== "boolean") {
+      if (p.kind === "command") commandResult(m, p, tick, "rejected_module_error");
+      requestFailure(d, s, m, tick, "validate_input_error", logger);
+      return;
+    }
+    if (!valid) { requestRejected(d, m, "Invalid input schema"); return; }
     m.seq = p.seq;
     m.acceptedTick = tick;
     if (s.diagnosticsEnabled) bump(m.diagnostics, "accepted", 1);
@@ -738,8 +854,12 @@ function handleMessage(
           mm.continuous = null;
           mm.continuousFresh = false;
           GAMES[s.game_id].join(s.game, id, mm.name, i);
-          if (mm.selection !== null && GAMES[s.game_id].select)
-            GAMES[s.game_id].select!(s.game, id, mm.selection);
+        });
+        // Finish all joined defaults before independently replaying selections.
+        memberIds(s).forEach(function (id) {
+          var mm = s.members[id], oldSelection = mm.selection;
+          if (oldSelection !== null && !applySelection(d, s, mm, id, oldSelection, tick, logger))
+            mm.selection = null;
         });
         d.matchLabelUpdate(roomLabel(s));
       }
@@ -749,12 +869,12 @@ function handleMessage(
         !exactKeys(p, ["round_id", "selection"]) ||
         !finite(p.round_id) ||
         Math.floor(p.round_id) !== p.round_id ||
+        p.round_id < 1 ||
         !p.selection ||
         typeof p.selection !== "object" ||
         Array.isArray(p.selection) ||
         !game.validateSelection ||
-        !game.select ||
-        !game.validateSelection(p.selection)
+        !game.select
       ) {
         invalid(d, m, "Invalid player selection");
         return;
@@ -762,8 +882,7 @@ function handleMessage(
       // A member may change only their own module-approved presentation while
       // in the current lobby. Stale clicks cannot cross the rematch boundary.
       if (s.phase !== "lobby" || p.round_id !== s.round_id) return;
-      if (game.select(s.game, msg.sender.userId, p.selection)) m.ready = false;
-      m.selection = p.selection;
+      applySelection(d, s, m, msg.sender.userId, p.selection, tick, logger);
     } else invalid(d, m, "Unknown opcode");
   }
 }
@@ -827,7 +946,7 @@ var matchLoop: nkruntime.MatchLoopFunction<RoomState> = function (
   } else s.emptyTicks = 0;
   try {
     messages.forEach(function (msg) {
-      handleMessage(nk, d, s, tick, msg);
+      handleMessage(nk, d, s, tick, msg, logger);
     });
     if (s.phase === "countdown" && --s.countdown <= 0) {
       s.phase = PHASE_PLAYING;

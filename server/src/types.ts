@@ -8,6 +8,15 @@ interface GameModule {
   // Positive seconds enable the core safety deadline; 0 uses module completion only.
   duration: number;
   minimumPlayers?: number;
+  // Request callbacks must avoid global/external effects and retained references.
+  // Validators receive independent copies. false is ordinary rejection; throwing
+  // or returning a nonboolean is a recoverable module request failure.
+  // select receives isolated state: both boolean returns commit its candidate,
+  // true additionally clears ready; exceptions/illegal returns discard all edits.
+  // Selection state must be a finite plain-data tree: null/bool/string/number,
+  // dense arrays/plain objects; depth <=32, nodes <=10000, JSON UTF8 <=65536 bytes.
+  // Cycles/shared aliases/accessors/special types/pollution keys are unsupported.
+  // Special module state needs a future dedicated adapter; never a live fallback.
   validateSelection?(selection: any): boolean;
   select?(state: any, id: string, selection: any): boolean;
   choices?: { id: string; title: string; description: string }[];
@@ -28,7 +37,7 @@ interface GameModule {
   results(state: any, tick: number): any[];
 }
 var TICK_RATE = 30;
-var PROTOCOL_VERSION = 2;
+var PROTOCOL_VERSION = 3;
 interface QueuedInput {
   payload: any;
   tick: number;
@@ -36,6 +45,8 @@ interface QueuedInput {
 function newStats(): any {
   return {
     projection_error: 0,
+    module_request_error: 0,
+    validate_input_error: 0, validate_selection_error: 0, select_error: 0, request_clone_error: 0,
     received: 0,
     received_bytes: 0,
     accepted: 0,
