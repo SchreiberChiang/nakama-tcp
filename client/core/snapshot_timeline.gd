@@ -41,6 +41,18 @@ var _underrun_debt: bool = false
 var _recovery_started_seconds: float = -1.0
 var _pending_correction: bool = false
 var _clock_offset_decreased: bool = false
+var underrun_reanchor_seconds: float = 0.350
+var clock_reanchors: int = 0
+var _underrun_started_seconds: float = -1.0
+var _rebuffering: bool = false
+
+## A sustained delivery-offset increase trades a short explicit rebuffer for
+## seconds of repeated underrun. This is an arrival anchor, never RTT.
+func configure_recovery(underrun_ms: float = 350.0) -> bool:
+	if not is_finite(underrun_ms) or underrun_ms < 100 or underrun_ms > 1000:
+		return false
+	underrun_reanchor_seconds = underrun_ms / 1000.0
+	return true
 
 func configure(delay_ms: float, extrapolation_ms: float = 0.0) -> bool:
 	if not is_finite(delay_ms) or delay_ms < 0 or delay_ms > 500 or not is_finite(extrapolation_ms) or extrapolation_ms < 0:
@@ -76,6 +88,9 @@ func reset() -> void:
 	_recovery_started_seconds = -1.0
 	_pending_correction = false
 	_clock_offset_decreased = false
+	clock_reanchors = 0
+	_underrun_started_seconds = -1.0
+	_rebuffering = false
 
 static func _number(value: Variant) -> bool:
 	return (value is int or value is float) and is_finite(float(value))
@@ -171,6 +186,22 @@ func sample(now_seconds: float) -> Dictionary:
 	if frames.is_empty() or not is_finite(now_seconds):
 		state = "empty"
 		return {}
+	if _underrun_started_seconds >= 0 and now_seconds - _underrun_started_seconds >= underrun_reanchor_seconds and _last_receive_seconds >= 0:
+		var latest_offset := _last_receive_seconds - float(last_server_tick) / sim_hz
+		if latest_offset > _clock_offset + 1.0 / sim_hz:
+			# Forget the old low offset only after sustained starvation. A TCP
+			# batch can temporarily overestimate the anchor; later lower samples
+			# recover through the existing bounded rate/correction path.
+			arrival_offsets.assign([latest_offset])
+			_clock_offset = latest_offset
+			_rebuffering = true
+			_playhead_ready = false
+			_pending_correction = true
+			_recovery_started_seconds = -1.0
+			_underrun_debt = false
+			clock_reanchors += 1
+			discontinuities += 1
+		_underrun_started_seconds = -1.0
 	var desired := now_seconds - _clock_offset - delay_seconds
 	var oldest := float(frames[0].time)
 	var newest := float(frames[-1].time)
@@ -180,6 +211,15 @@ func sample(now_seconds: float) -> Dictionary:
 	var previous_time := render_time_seconds
 	var previous_presented: Variant = presented_time_seconds
 	var continuous_time := render_time_seconds
+	if _rebuffering and previous_presented != null and desired < float(previous_presented):
+		# Hold the last displayed source pose; never rewind already shown time.
+		state = "buffering"
+		_last_sample_seconds = now_seconds
+		playback_rate = 0.0
+		recovery_age_ms = 0.0
+		recovery_debt_ms = 0.0
+		return _poses_at(float(previous_presented))
+	_rebuffering = false
 	if not _playhead_ready:
 		render_time_seconds = maxf(desired, float(previous_presented)) if previous_presented != null else desired
 		correction_this_sample = _pending_correction
@@ -244,6 +284,8 @@ func sample(now_seconds: float) -> Dictionary:
 			state = "underrun"
 			underrun_frames += 1
 			_underrun_debt = true
+			if _underrun_started_seconds < 0:
+				_underrun_started_seconds = now_seconds
 		else:
 			state = "extrapolating"
 			extrapolated_frames += 1
@@ -253,14 +295,22 @@ func sample(now_seconds: float) -> Dictionary:
 		recovery_debt_ms = maxf(0, desired - render_time_seconds) * 1000.0
 		return _extrapolated_poses(minf(requested, allowed))
 	state = "interpolating"
+	# A fresh packet can give one interpolating frame while the old min clock
+	# still leaves no reserve. That frame must not restart the starvation timer.
+	if _last_receive_seconds - float(last_server_tick) / sim_hz <= _clock_offset + 1.0 / sim_hz:
+		_underrun_started_seconds = -1.0
 	presented_time_seconds = render_time_seconds
 	recovery_debt_ms = maxf(0, desired - render_time_seconds) * 1000.0
+	return _poses_at(render_time_seconds)
+
+func _poses_at(at_seconds: float) -> Dictionary:
+	if at_seconds <= float(frames[0].time): return frames[0].poses.duplicate(true)
 	for i in range(1, frames.size()):
 		var upper: Dictionary = frames[i]
-		if float(upper.time) + 0.000001 < render_time_seconds:
+		if float(upper.time) + 0.000001 < at_seconds:
 			continue
 		var lower: Dictionary = frames[i - 1]
-		var alpha := clampf((render_time_seconds - float(lower.time)) / (float(upper.time) - float(lower.time)), 0, 1)
+		var alpha := clampf((at_seconds - float(lower.time)) / (float(upper.time) - float(lower.time)), 0, 1)
 		var result: Dictionary = {}
 		for id in upper.poses:
 			var end: Dictionary = upper.poses[id]
@@ -284,4 +334,4 @@ func _extrapolated_poses(seconds: float) -> Dictionary:
 	return result
 
 func summary() -> Dictionary:
-	return {"sim_hz": sim_hz if last_server_tick >= 0 else null, "snapshot_hz": snapshot_hz if last_server_tick >= 0 else null, "interpolation_delay_ms": delay_seconds * 1000.0, "extrapolation_limit_ms": _extrapolation_ms, "buffer_samples": frames.size(), "buffer_depth_ms": (float(frames[-1].time) - float(frames[0].time)) * 1000.0 if frames.size() > 1 else 0.0, "underrun_frames": underrun_frames, "extrapolated_frames": extrapolated_frames, "late_snapshot_drops": late_snapshot_drops, "timeline_resets": discontinuities, "render_tick": float(presented_time_seconds) * sim_hz if presented_time_seconds != null else null, "latest_snapshot_tick": last_server_tick if last_server_tick >= 0 else null, "latest_snapshot_render_gap_ms": (float(last_server_tick) / sim_hz - float(presented_time_seconds)) * 1000.0 if presented_time_seconds != null else null, "playback_rate": playback_rate if presented_time_seconds != null else null, "recovery_age_ms": recovery_age_ms if presented_time_seconds != null else null, "recovery_debt_ms": recovery_debt_ms if presented_time_seconds != null else null, "presentation_state": state}
+	return {"clock_reanchors": clock_reanchors, "underrun_reanchor_ms": underrun_reanchor_seconds * 1000.0, "sim_hz": sim_hz if last_server_tick >= 0 else null, "snapshot_hz": snapshot_hz if last_server_tick >= 0 else null, "interpolation_delay_ms": delay_seconds * 1000.0, "extrapolation_limit_ms": _extrapolation_ms, "buffer_samples": frames.size(), "buffer_depth_ms": (float(frames[-1].time) - float(frames[0].time)) * 1000.0 if frames.size() > 1 else 0.0, "underrun_frames": underrun_frames, "extrapolated_frames": extrapolated_frames, "late_snapshot_drops": late_snapshot_drops, "timeline_resets": discontinuities, "render_tick": float(presented_time_seconds) * sim_hz if presented_time_seconds != null else null, "latest_snapshot_tick": last_server_tick if last_server_tick >= 0 else null, "latest_snapshot_render_gap_ms": (float(last_server_tick) / sim_hz - float(presented_time_seconds)) * 1000.0 if presented_time_seconds != null else null, "playback_rate": playback_rate if presented_time_seconds != null else null, "recovery_age_ms": recovery_age_ms if presented_time_seconds != null else null, "recovery_debt_ms": recovery_debt_ms if presented_time_seconds != null else null, "presentation_state": state}

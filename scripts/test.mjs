@@ -2,6 +2,7 @@ import { checked } from "./process.mjs";
 import { mkdirSync } from "node:fs";
 if (!process.env.GODOT) throw Error("Set GODOT to Godot 4.7.2 executable.");
 mkdirSync(".local", { recursive: true });
+console.log(await checked(process.execPath, ["scripts/test-launcher-config.mjs"], {log: ".local/launcher-config.log"}));
 for (const args of [["scripts/build.mjs"], ["scripts/build.mjs", "--fixture"]])
   console.log(
     await checked(process.execPath, args, { log: ".local/test-build.log" }),
@@ -26,14 +27,18 @@ console.log(
     { log: ".local/sdk.log" },
   ),
 );
-for (const fixture of [false, true]) {
+for (const scenario of ["empty", "fixture", "diagnostics", "input", "projection"]) {
+  const fixture = scenario !== "empty";
   const env = {
     ...process.env,
-    NAKAMA_DATA_DIR: `.local/database-${fixture ? "fixture" : "empty"}-${Date.now()}`,
+    NAKAMA_DATA_DIR: `.local/database-${scenario}-${Date.now()}`,
     TEST_FIXTURE: fixture ? "1" : "0",
-    NAKAMA_LOG: `.local/server-${fixture ? "fixture" : "empty"}.log`,
-    GAME_DIAGNOSTICS: "1",
+    NAKAMA_LOG: `.local/server-${scenario}.log`,
+    TEST_DIAGNOSTICS: scenario === "diagnostics" ? "1" : "0",
+    TEST_FAULT: ["input", "projection"].includes(scenario) ? scenario : "",
   };
+  if (scenario === "diagnostics") env.GAME_DIAGNOSTICS = "1";
+  else delete env.GAME_DIAGNOSTICS;
   if (fixture) env.NAKAMA_RUNTIME_DIR = ".local/test-runtime";
   else delete env.NAKAMA_RUNTIME_DIR;
   console.log(
@@ -41,9 +46,9 @@ for (const fixture of [false, true]) {
       process.execPath,
       ["scripts/run-with-server.mjs", process.execPath, "tests/network.mjs"],
       {
-        timeout: 120000,
+        timeout: 180000,
         env,
-        log: `.local/network-${fixture ? "fixture" : "empty"}.log`,
+        log: `.local/network-${scenario}.log`,
       },
     ),
   );

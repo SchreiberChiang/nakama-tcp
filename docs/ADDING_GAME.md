@@ -24,8 +24,8 @@ static var modules: Dictionary = {
 
 结果当前按 `username/score` 作通用文字展示；需要不同结算字段时，可增加模块自有 formatter 接口，共享层只负责进入结果页、留房和下一轮，不能在 UI 写玩法业务规则。
 
-输入沿用Session唯一边界：事件调用 `submit_input`（command），持续provider发送state；客户端补充seq/round_id/kind/client_tick，不上传权威位置。fixture state仅有direction{x,y}，command仅有pulse:boolean。模块validateInput必须白名单包含共同信封字段，不能接受客户端score/position注入。input只在第一次消费新输入时调用，step每模拟tick执行；持续方向由模块保存，不能依赖每tick重复input。具体合并、8条队列、每tick2命令、15tickneutral、30tick过期及精确receipts见PROTOCOL。模块input/step异常没有事务回滚，不能承诺exactly-once。
+输入沿用Session唯一边界：事件调用 `submit_input`（command），持续provider发送state；客户端补充seq/round_id/kind/client_tick，不上传权威位置。fixture state仅有direction{x,y}，command仅有pulse:boolean。模块validateInput必须白名单包含共同信封字段，不能接受客户端score/position注入。input只在第一次消费新输入时调用，step每模拟tick执行；持续方向由模块保存，不能依赖每tick重复input。具体合并、8条队列、每tick2命令、默认15tick neutral、默认30tick过期及有界配置见PROTOCOL。预算包含快照陈旧及上行排队，不能当作RTT测量。matchLoop内input/step/inputExpired/start/finished/results异常会固定op11 Module failure、踢全部并终止整房；无事务回滚，异常前状态可能已改动，不能承诺exactly-once。外部join/leave/create回调须自行保证不抛错。command/state共享seq，不提供原seq自动重试；精确命令终态使用本人独立32条command_results环（含round），正常结束未消费队列为cancelled_round，详情及有界unknown边界见PROTOCOL。
 
-底座深复制模块投影后装饰核心字段，避免复用对象将本人receipt串入对方快照；每条op10定向一个presence，UTF8序列化上限65536字节，投影异常/非法players或results数组/超大小均停止该接收者发送，并在启用诊断时增加固定错误计数。深复制和大小检查发生在模块投影之后，不能约束模块自身的内存分配/运算；复杂模块仍须自行限制结果大小和执行成本。投影测试至少使用两个不同私有哨兵，检查真实dispatcher载荷在快照及结算均不含对方哨兵。
+底座深复制模块投影后装饰核心字段，避免复用对象将本人receipt串入对方快照；每条op10定向一个presence，UTF8序列化上限65536字节，投影异常/非法players或results数组/超大小均停止该接收者发送，并发送固定限频op11 Projection failure；连续3次失败移出该成员，成功清零连续计数，诊断启用时增加固定错误计数。深复制和大小检查发生在模块投影之后，不能约束模块自身的内存分配/运算；复杂模块仍须自行限制结果大小和执行成本。投影测试至少使用两个不同私有哨兵，检查真实dispatcher载荷在快照及结算均不含对方哨兵。
 
 纯服务端合同验证：先 `node scripts/build.mjs --fixture`，再 `node tests/server-protocol.mjs`；不启动服务。它不能替代双真实客户端、设备/WAN和导出验证。

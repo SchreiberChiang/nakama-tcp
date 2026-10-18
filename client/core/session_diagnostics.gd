@@ -7,6 +7,7 @@ var _samples: Dictionary = {}
 var _counts: Dictionary = {}
 var _ack: Dictionary = {}
 var _receipts: Array = []
+var _command_results: Array = []
 
 func set_enabled(value: bool) -> void:
 	enabled = value
@@ -17,6 +18,21 @@ func reset() -> void:
 	_counts.clear()
 	_ack.clear()
 	_receipts.clear()
+	_command_results.clear()
+
+func observe_command_results(values: Array) -> void:
+	if not enabled: return
+	_command_results.clear()
+	var statuses := ["applied", "expired", "rejected_full", "rejected_stale", "rejected_future", "rejected_not_playing", "rejected_round", "rejected_old_seq", "cancelled_round", "rejected_rate"]
+	for item in values.slice(-32):
+		if not item is Dictionary or item.get("status") not in statuses: continue
+		var valid := true
+		for key in ["seq", "round_id", "tick"]:
+			var value: Variant = item.get(key)
+			valid = valid and typeof(value) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(value)) and float(value) >= 0 and float(value) <= 9007199254740991.0 and float(value) == floor(float(value))
+		if valid:
+			# Numeric enum only in diagnostics; Session offers named statuses.
+			_command_results.append({"seq": int(item.seq), "round_id": int(item.round_id), "tick": int(item.tick), "status_code": statuses.find(item.status)})
 
 func record(event: String, bytes: int, now_msec: int) -> void:
 	if not enabled or event not in EVENTS: return
@@ -47,6 +63,7 @@ func observe_receipts(values: Variant) -> void:
 func summary(now_msec: int) -> Dictionary:
 	if not enabled: return {"enabled": false}
 	var result := {"enabled": true, "rtt_ms": null, "server_consume_delay_ms": null, "observed_input_ack": _ack.duplicate(), "exact_input_receipts": _receipts.duplicate(true), "ack_semantics": "highest_observed_not_cumulative", "missing_reason": "RTT and server consume delay have no same-clock round trip measurement"}
+	result.command_results = _command_results.duplicate(true)
 	for event in EVENTS:
 		var samples: Array = _samples.get(event, [])
 		var total_bytes := 0

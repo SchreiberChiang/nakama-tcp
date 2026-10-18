@@ -10,6 +10,17 @@ import {
 } from "./run-with-server.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+export function inputRuntimeArgs(env) {
+  const args = [];
+  for (const key of ["GAME_INPUT_WINDOW_TICKS", "GAME_STATE_TIMEOUT_TICKS"]) {
+    const value = env[key];
+    if (value === undefined) continue;
+    if (!/^(?:[1-9]\d{0,2})$/.test(value) || Number(value) > 300)
+      throw Error(`${key} must be an integer from 1 to 300`);
+    args.push("--runtime.env", `${key}=${value}`);
+  }
+  return args;
+}
 export function windowsPgStop(
   pg,
   databaseDir,
@@ -145,6 +156,7 @@ if (
       throw Error("GAME_SNAPSHOT_RATE must be exactly 10, 20, or 30");
     if (diagnostics !== undefined && !["0", "1"].includes(diagnostics))
       throw Error("GAME_DIAGNOSTICS must be exactly 0 or 1");
+    const inputArgs = inputRuntimeArgs(process.env);
     await assertPortsFree();
     if (existsSync(path.join(data, "postgres", "postmaster.pid")))
       throw Error(
@@ -199,6 +211,7 @@ if (
           ? []
           : ["--runtime.env", "GAME_SNAPSHOT_RATE=" + snapshotRate]),
         ...(diagnostics === undefined ? [] : ["--runtime.env", "GAME_DIAGNOSTICS=" + diagnostics]),
+        ...inputArgs,
       ],
       { stdio: ["ignore", "pipe", "pipe"] },
     );

@@ -53,7 +53,7 @@ node scripts/run-with-server.mjs $env:GODOT --path client -- --profile=local-one
 
 ## 验证与导出
 
-阶段一协议与消费语义见 [PROTOCOL](docs/PROTOCOL.md)，呈现缓冲见 [SNAPSHOT_TIMELINE](docs/SNAPSHOT_TIMELINE.md)，本轮一键验证、窗口 fixture 演示、失败记录与未测边界见 [PHASE1_VALIDATION](docs/PHASE1_VALIDATION.md)。测试玩法仅在隔离测试构建启用，玩家导出仍为空注册。
+阶段一协议与消费语义见 [PROTOCOL](docs/PROTOCOL.md)，呈现缓冲见 [SNAPSHOT_TIMELINE](docs/SNAPSHOT_TIMELINE.md)，本轮一键验证、窗口 fixture 演示、失败记录与未测边界见 [PHASE1_VALIDATION](docs/PHASE1_VALIDATION.md)。协议v2的审查修复、双端故障与完整第二轮证据见 [REVIEW_FOLLOWUP](docs/REVIEW_FOLLOWUP.md)。测试玩法仅在隔离测试构建启用，玩家导出仍为空注册。
 
 ```powershell
 node scripts/test.mjs

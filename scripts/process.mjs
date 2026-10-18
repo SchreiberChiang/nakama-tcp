@@ -32,7 +32,7 @@ export async function checked(
     timedOut ||
     code !== 0 ||
     (forbidErrors &&
-      /(?:SCRIPT ERROR|^ERROR:|^WARNING:|Parse Error|Compile Error)/m.test(
+      /(?:SCRIPT ERROR|^ERROR:|^WARNING:|^FAIL(?:\s|:)|\bfailures=[1-9]\d*|\bFAILURES\s+[1-9]\d*|"failed"\s*:\s*[1-9]\d*|Parse Error|Compile Error)/m.test(
         output,
       ))
   )

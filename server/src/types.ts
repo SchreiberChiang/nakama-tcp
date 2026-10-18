@@ -28,7 +28,7 @@ interface GameModule {
   results(state: any, tick: number): any[];
 }
 var TICK_RATE = 30;
-var PROTOCOL_VERSION = 1;
+var PROTOCOL_VERSION = 2;
 interface QueuedInput {
   payload: any;
   tick: number;
@@ -43,6 +43,8 @@ function newStats(): any {
     sent: 0,
     sent_bytes: 0,
     expired: 0,
+    state_timeout: 0, command_expired: 0, rate_dropped: 0,
+    late: 0, future: 0, not_playing: 0, round: 0, dup: 0, queue_full: 0,
     coalesced: 0,
     last_receive_tick: -1,
     last_consume_tick: -1,

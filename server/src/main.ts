@@ -8,6 +8,9 @@ interface Member extends ChatMember {
   appliedSeq: number;
   appliedTick: number;
   receipts: { seq: number; tick: number; kind: string }[];
+  commandResults: { seq: number; round_id: number; tick: number; status: string }[];
+  projectionFailures: number;
+  projectionErrorTick: number;
   commands: QueuedInput[];
   continuous: QueuedInput | null;
   continuousFresh: boolean;
@@ -46,6 +49,17 @@ interface RoomState extends ChatRoomState {
   diagnosticsEnabled: boolean;
   snapshotRate: number;
   snapshotAccumulator: number;
+  inputWindow: number;
+  stateTimeout: number;
+}
+function configuredTicks(ctx: nkruntime.Context, key: string, fallback: number): number {
+  var raw = ctx.env && ctx.env[key], value = raw === undefined ? fallback : Number(raw);
+  return finite(value) && Math.floor(value) === value && value >= 1 && value <= 300 ? value : fallback;
+}
+function commandResult(m: Member, p: any, tick: number, status: string): void {
+  if (m.commandResults.some(function (r) { return r.seq === p.seq && r.round_id === p.round_id; })) return;
+  m.commandResults.push({ seq: p.seq, round_id: p.round_id, tick: tick, status: status });
+  if (m.commandResults.length > 32) m.commandResults.shift();
 }
 // Launch-time snapshot setting, captured independently by each new room.
 function configuredSnapshotRate(ctx: nkruntime.Context): number {
@@ -150,7 +164,11 @@ function snapshot(s: RoomState, recipientId: string): any {
     p.applied_input_seq = member ? member.appliedSeq : -1;
     p.applied_input_tick = member ? member.appliedTick : -1;
     delete p.input_receipts;
-    if (member && p.user_id === recipientId) p.input_receipts = member.receipts;
+    delete p.command_results;
+    if (member && p.user_id === recipientId) {
+      p.input_receipts = member.receipts;
+      p.command_results = member.commandResults;
+    }
   });
   return result;
 }
@@ -163,8 +181,28 @@ function broadcast(d: nkruntime.MatchDispatcher, s: RoomState): void {
     } catch (e) {
       if (s.diagnosticsEnabled)
         bump(s.members[id].diagnostics, "projection_error", 1);
+      var member = s.members[id];
+      member.projectionFailures++;
+      if (member.projectionErrorTick < 0 || s.tick - member.projectionErrorTick >= TICK_RATE) {
+        member.projectionErrorTick = s.tick;
+        d.broadcastMessage(11, JSON.stringify({ error: "Projection failure", message: "Room data unavailable" }), [member.presence]);
+      }
+      if (member.projectionFailures >= 3) {
+        d.matchKick([member.presence]);
+        GAMES[s.game_id].leave(s.game, id, s.phase === PHASE_PLAYING || s.phase === "results", s.tick);
+        delete s.members[id];
+        s.order = s.order.filter(function (other) { return other !== id; });
+        if (s.host_id === id) transferHost(s, memberIds(s)[0] || "", "projection_failure");
+        if (s.phase === "countdown" && memberIds(s).length < minimumPlayers(GAMES[s.game_id])) {
+          s.phase = "lobby";
+          s.countdown = 0;
+          memberIds(s).forEach(function (remaining) { s.members[remaining].ready = false; });
+        }
+        d.matchLabelUpdate(roomLabel(s));
+      }
       return;
     }
+    s.members[id].projectionFailures = 0;
     d.broadcastMessage(10, data, [s.members[id].presence]);
     if (s.diagnosticsEnabled) {
       wallGap(s.members[id].diagnostics, "send");
@@ -347,6 +385,8 @@ var matchInit: nkruntime.MatchInitFunction<RoomState> = function (
     diagnosticsEnabled: !!ctx.env && ctx.env.GAME_DIAGNOSTICS === "1",
     snapshotRate: configuredSnapshotRate(ctx),
     snapshotAccumulator: 0,
+    inputWindow: configuredTicks(ctx, "GAME_INPUT_WINDOW_TICKS", 30),
+    stateTimeout: configuredTicks(ctx, "GAME_STATE_TIMEOUT_TICKS", 15),
   };
   return { state: s, tickRate: TICK_RATE, label: roomLabel(s) };
 };
@@ -433,6 +473,9 @@ var matchJoin: nkruntime.MatchJoinFunction<RoomState> = function (
       appliedSeq: -1,
       appliedTick: -1,
       receipts: [],
+      commandResults: [],
+      projectionFailures: 0,
+      projectionErrorTick: -1,
       commands: [],
       continuous: null,
       continuousFresh: false,
@@ -557,10 +600,6 @@ function handleMessage(
     return;
   }
   if (msg.opCode === 1) {
-    if (++m.inputs > 60) {
-      invalid(d, m, "Input rate exceeded");
-      return;
-    }
     if (
       (p.kind !== "state" && p.kind !== "command") ||
       GAMES[s.game_id].inputKinds.indexOf(p.kind) < 0 ||
@@ -579,14 +618,21 @@ function handleMessage(
       invalid(d, m, "Invalid input schema");
       return;
     }
-    if (
-      s.phase !== PHASE_PLAYING ||
-      p.round_id !== s.round_id ||
-      p.seq <= m.seq
-    )
+    var reject = function (reason: string, status: string): void {
+      if (s.diagnosticsEnabled) bump(m.diagnostics, reason, 1);
+      if (p.kind === "command") commandResult(m, p, tick, status);
+    };
+    if (p.kind === "command" && (m.commandResults.some(function (r) { return r.seq === p.seq && r.round_id === p.round_id; }) || m.commands.some(function (q) { return q.payload.seq === p.seq && q.payload.round_id === p.round_id; }))) {
+      if (s.diagnosticsEnabled) bump(m.diagnostics, "dup", 1);
       return;
-    if (p.client_tick < tick - 30 || p.client_tick > tick + 2) return;
-    if (p.kind === "command" && m.commands.length >= 8) return;
+    }
+    if (++m.inputs > 60) { reject("rate_dropped", "rejected_rate"); return; }
+    if (s.phase !== PHASE_PLAYING) { reject("not_playing", "rejected_not_playing"); return; }
+    if (p.round_id !== s.round_id) { reject("round", "rejected_round"); return; }
+    if (p.seq <= m.seq) { reject("dup", "rejected_old_seq"); return; }
+    if (p.client_tick < tick - s.inputWindow) { reject("late", "rejected_stale"); return; }
+    if (p.client_tick > tick + 2) { reject("future", "rejected_future"); return; }
+    if (p.kind === "command" && m.commands.length >= 8) { reject("queue_full", "rejected_full"); return; }
     m.seq = p.seq;
     m.acceptedTick = tick;
     if (s.diagnosticsEnabled) bump(m.diagnostics, "accepted", 1);
@@ -686,6 +732,8 @@ function handleMessage(
           mm.appliedSeq = -1;
           mm.appliedTick = -1;
           mm.receipts = [];
+          mm.commandResults = [];
+          mm.diagnostics = newStats();
           mm.commands = [];
           mm.continuous = null;
           mm.continuousFresh = false;
@@ -732,11 +780,11 @@ function consumeInputs(
       module.input(s.game, id, q.payload, tick);
       consumed.push({ id: id, seq: q.payload.seq, kind: q.payload.kind });
     };
-    if (m.continuous && tick - m.continuous.tick >= 15) {
+    if (m.continuous && tick - m.continuous.tick >= s.stateTimeout) {
       if (module.inputExpired) module.inputExpired(s.game, id, tick);
       m.continuous = null;
       m.continuousFresh = false;
-      if (s.diagnosticsEnabled) bump(m.diagnostics, "expired", 1);
+      if (s.diagnosticsEnabled) { bump(m.diagnostics, "expired", 1); bump(m.diagnostics, "state_timeout", 1); }
     }
     if (m.continuous && m.continuousFresh) {
       apply(m.continuous);
@@ -745,8 +793,9 @@ function consumeInputs(
     var count = 0;
     while (m.commands.length && count < 2) {
       var command = m.commands.shift()!;
-      if (tick - command.payload.client_tick > 30) {
-        if (s.diagnosticsEnabled) bump(m.diagnostics, "expired", 1);
+      if (tick - command.payload.client_tick > s.inputWindow) {
+        commandResult(m, command.payload, tick, "expired");
+        if (s.diagnosticsEnabled) { bump(m.diagnostics, "expired", 1); bump(m.diagnostics, "command_expired", 1); }
         continue;
       }
       apply(command);
@@ -776,53 +825,69 @@ var matchLoop: nkruntime.MatchLoopFunction<RoomState> = function (
   if (ids.length === 0) {
     if (++s.emptyTicks > 300) return null;
   } else s.emptyTicks = 0;
-  messages.forEach(function (msg) {
-    handleMessage(nk, d, s, tick, msg);
-  });
-  if (s.phase === "countdown" && --s.countdown <= 0) {
-    s.phase = PHASE_PLAYING;
-    s.roundStart = tick;
-    GAMES[s.game_id].start(s.game, tick);
-    d.matchLabelUpdate(roomLabel(s));
-  }
-  if (s.phase === PHASE_PLAYING) {
-    var consumed = consumeInputs(s, tick);
-    GAMES[s.game_id].step(s.game, tick);
-    consumed.forEach(function (entry) {
-      var m = s.members[entry.id];
-      if (entry.seq > m.appliedSeq) {
-        m.appliedSeq = entry.seq;
-        m.appliedTick = tick;
-      }
-      if (s.diagnosticsEnabled) {
-        var stats = m.diagnostics;
-        wallGap(stats, "consume");
-        bump(stats, "consumed", 1);
-        stats.consume_gap_ticks =
-          stats.last_consume_tick < 0 ? 0 : tick - stats.last_consume_tick;
-        stats.last_consume_tick = tick;
-      }
-      m.receipts.push({ seq: entry.seq, tick: tick, kind: entry.kind });
-      if (m.receipts.length > 16) m.receipts.shift();
+  try {
+    messages.forEach(function (msg) {
+      handleMessage(nk, d, s, tick, msg);
     });
-    if (
-      GAMES[s.game_id].finished(s.game) ||
-      (GAMES[s.game_id].duration > 0 &&
-        tick - s.roundStart > GAMES[s.game_id].duration * TICK_RATE)
-    ) {
-      s.phase = "results";
-      s.results = GAMES[s.game_id].results(s.game, tick);
+    if (s.phase === "countdown" && --s.countdown <= 0) {
+      s.phase = PHASE_PLAYING;
+      s.roundStart = tick;
+      GAMES[s.game_id].start(s.game, tick);
       d.matchLabelUpdate(roomLabel(s));
     }
+    if (s.phase === PHASE_PLAYING) {
+      var consumed = consumeInputs(s, tick);
+      GAMES[s.game_id].step(s.game, tick);
+      consumed.forEach(function (entry) {
+        var m = s.members[entry.id];
+        if (entry.seq > m.appliedSeq) {
+          m.appliedSeq = entry.seq;
+          m.appliedTick = tick;
+        }
+        if (s.diagnosticsEnabled) {
+          var stats = m.diagnostics;
+          wallGap(stats, "consume");
+          bump(stats, "consumed", 1);
+          stats.consume_gap_ticks =
+            stats.last_consume_tick < 0 ? 0 : tick - stats.last_consume_tick;
+          stats.last_consume_tick = tick;
+        }
+        if (entry.kind === "command") commandResult(m, { seq: entry.seq, round_id: s.round_id }, tick, "applied");
+        m.receipts.push({ seq: entry.seq, tick: tick, kind: entry.kind });
+        if (m.receipts.length > 16) m.receipts.shift();
+      });
+      if (
+        GAMES[s.game_id].finished(s.game) ||
+        (GAMES[s.game_id].duration > 0 &&
+          tick - s.roundStart > GAMES[s.game_id].duration * TICK_RATE)
+      ) {
+        s.phase = "results";
+        s.results = GAMES[s.game_id].results(s.game, tick);
+        memberIds(s).forEach(function (id) {
+          var m = s.members[id];
+          m.commands.forEach(function (q) { commandResult(m, q.payload, tick, "cancelled_round"); });
+          m.commands = [];
+          m.continuous = null;
+          m.continuousFresh = false;
+        });
+        d.matchLabelUpdate(roomLabel(s));
+      }
+    }
+    // Integer accumulation preserves fractional cadence: 20Hz at 30 simulation
+    // ticks per second alternates 1/2-tick gaps without changing physics.
+    s.snapshotAccumulator += s.snapshotRate;
+    if (s.snapshotAccumulator >= TICK_RATE) {
+      s.snapshotAccumulator -= TICK_RATE;
+      broadcast(d, s);
+    }
+    return { state: s };
+  } catch (e) {
+    // Module mutations may already exist. Never resume this room or claim rollback.
+    var presences = memberIds(s).map(function (id) { return s.members[id].presence; });
+    d.broadcastMessage(11, JSON.stringify({ error: "Module failure", message: "Room module failed" }), presences);
+    if (presences.length) d.matchKick(presences);
+    return null;
   }
-  // Integer accumulation preserves fractional cadence: 20Hz at 30 simulation
-  // ticks per second alternates 1/2-tick gaps without changing physics.
-  s.snapshotAccumulator += s.snapshotRate;
-  if (s.snapshotAccumulator >= TICK_RATE) {
-    s.snapshotAccumulator -= TICK_RATE;
-    broadcast(d, s);
-  }
-  return { state: s };
 };
 var matchTerminate: nkruntime.MatchTerminateFunction<RoomState> = function (
   ctx,

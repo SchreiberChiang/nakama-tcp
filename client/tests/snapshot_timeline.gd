@@ -2,6 +2,16 @@ extends SceneTree
 const TIMELINE = preload("res://core/snapshot_timeline.gd")
 var checks := 0
 var failures := 0
+class DepartureAdapter extends NakamaSocketAdapter:
+	var packets: Array = []
+	func send(buffer: PackedByteArray, _reliable: bool = true) -> int:
+		packets.append(JSON.parse_string(buffer.get_string_from_utf8()))
+		return OK
+	func close():
+		closed.emit()
+class ImmediateDepartureSocket extends NakamaSocket:
+	func leave_match_async(_match_id: String) -> NakamaAsyncResult:
+		return NakamaAsyncResult.new()
 func _initialize() -> void:
 	_run.call_deferred()
 func check(value: bool, label: String) -> void:
@@ -11,7 +21,46 @@ func check(value: bool, label: String) -> void:
 func state(tick: int, round_id: int = 1) -> Dictionary:
 	return {"tick": tick, "round_id": round_id, "phase": "playing", "tick_rate": 30, "snapshot_rate": 20,
 		"players": [{"user_id": "LOCAL_TEST", "position": {"x": float(tick), "y": 0.0}, "velocity": {"x": 30.0, "y": 0.0}}]}
+
+func test_offset_increase(hz: int, gap: bool) -> void:
+	var line = TIMELINE.new()
+	line.configure(150 if hz == 10 else 117)
+	check(not line.configure_recovery(0) and line.configure_recovery(350), "reanchor threshold bounded %dHz" % hz)
+	var arrivals: Array = []
+	for tick in range(420):
+		if (tick * hz) / 30 == ((tick - 1) * hz) / 30 and tick > 0: continue
+		var source := tick / 30.0
+		var at := source + 0.04 + (0.25 if source >= 2.0 else 0.0)
+		if gap and source >= 2.0 and source < 2.7: continue
+		var packet := state(tick)
+		packet.snapshot_rate = hz
+		arrivals.append({"at": at, "packet": packet})
+	var cursor := 0
+	var underrun_seconds := 0.0
+	var stable_buffer := true
+	var previous := -1.0
+	var monotonic := true
+	for frame in range(840):
+		var now := frame / 60.0
+		while cursor < arrivals.size() and float(arrivals[cursor].at) <= now:
+			line.push_snapshot(arrivals[cursor].packet, arrivals[cursor].at, "offset-increase")
+			cursor += 1
+		line.sample(now)
+		if line.state == "underrun" and now >= 2.0 and now < 12.0: underrun_seconds += 1.0 / 60.0
+		if line.presented_time_seconds != null:
+			monotonic = monotonic and float(line.presented_time_seconds) + 0.000001 >= previous
+			previous = float(line.presented_time_seconds)
+			# Source cadence consumes at most one snapshot gap of playable reserve.
+			if now >= 4.2 and now < 12.0:
+				var reserve := float(line.last_server_tick) / 30.0 - float(line.presented_time_seconds)
+				stable_buffer = stable_buffer and reserve >= line.delay_seconds - ceil(30.0 / hz) / 30.0 - 0.018
+	check(underrun_seconds < 1.5, "+250ms maintained 10s bounded underrun %dHz gap=%s seconds=%.3f" % [hz, gap, underrun_seconds])
+	check(stable_buffer and line.clock_reanchors > 0, "playable reserve restored within 2.2s %dHz gap=%s" % [hz, gap])
+	check(monotonic, "offset increase never rewinds shown source time %dHz gap=%s" % [hz, gap])
 func _run() -> void:
+	for hz in [10, 20]:
+		test_offset_increase(hz, false)
+		test_offset_increase(hz, true)
 	var line = TIMELINE.new()
 	check(line.sample(0).is_empty(), "empty has no invented pose")
 	check(not line.configure(-1) and not line.configure(NAN) and not line.configure(1, INF), "invalid configuration rejected")
@@ -107,14 +156,105 @@ func _run() -> void:
 	check(diag.summary(302).send_completed.window_bytes == 64 and diag.summary(302).snapshot_consumed.window_bytes == 128, "completed send and logical snapshot consumption preserve measured payload bytes")
 	var transport := get_root().get_node("Session")
 	check(not transport._valid_catalog({"games": []}) and not transport._valid_catalog({"protocol_version": 0, "games": []}), "missing and old catalog version rejected")
-	check(transport._valid_catalog({"protocol_version": 1, "games": []}), "current empty catalog is compatible")
+	check(not transport._valid_catalog({"protocol_version": 1, "games": []}), "v1 catalog rejected after command outcome protocol change")
+	check(transport._valid_catalog({"protocol_version": transport.PROTOCOL_VERSION, "games": []}), "current empty catalog is compatible")
+	check(transport.diagnostic_summary() == {"enabled": false}, "real Session diagnostics default off")
+	var initial_scope: String = transport.presentation_scope()
+	transport.leave_room()
+	var left_scope: String = transport.presentation_scope()
+	transport.logout()
+	check(initial_scope != left_scope and left_scope != transport.presentation_scope(), "real Session leave epoch and logout generation change presentation scope")
+	var scope_line = TIMELINE.new()
+	scope_line.push_snapshot(state(300), 10.0, initial_scope)
+	check(scope_line.push_snapshot(state(0), 0.0, left_scope) and scope_line.frames.size() == 1, "Session epoch scope clears prior clock and history")
+	check(scope_line.push_snapshot(state(0), 0.0, transport.presentation_scope()) and scope_line.frames.size() == 1, "Session generation scope clears prior clock and history")
+	transport.snapshot_received_msec = 1000
+	check(transport.state_input_fresh(1350) and not transport.state_input_fresh(1351), "state pauses past configurable local snapshot age")
+	check(not transport.configure_state_freshness(0) and transport.configure_state_freshness(500) and transport.state_input_fresh(1450), "state freshness threshold validated")
+	transport.configure_state_freshness(350)
+	transport.snapshot = {"phase": "playing"}
+	transport._seq = 0
+	transport.snapshot_received_msec = -1
+	transport.submit_input({"direction": {"x": 1, "y": 0}}, "state")
+	check(transport._seq == 0, "stale state not submitted or sequenced")
+	transport._input_elapsed = 0.0
+	transport._process(0.040)
+	check(absf(transport._input_elapsed - (0.040 - 1.0 / 30.0)) < 0.00001, "state cadence preserves remainder")
+	transport._process(3.0)
+	check(transport._input_elapsed < 1.0 / 30.0, "long frame discards missed send periods")
+	transport._observe_command_results([{"seq": 5, "round_id": 1, "tick": 30, "status": "expired", "secret": "PRIVATE_PAYLOAD"}])
+	check(transport.command_results()[0].status == "expired" and transport.command_results()[0].size() == 4, "command outcomes available while diagnostics disabled")
+	transport._on_room_action_error({"error": "Projection failure"})
+	check(transport.snapshot.is_empty() and not transport.input_provider.is_valid() and transport.command_results().is_empty(), "fixed projection error exits playing and clears inputs and command outcomes")
 	check(not ModuleRegistry.compatible({"id": "UNINSTALLED", "module_version": 1}), "uninstalled module is incompatible")
 	var saved_modules: Dictionary = ModuleRegistry.modules.duplicate(true)
 	ModuleRegistry.modules["VERSION_TEST"] = {"metadata": {"module_version": 2}}
 	check(not ModuleRegistry.compatible({"id": "VERSION_TEST", "module_version": 1}) and not ModuleRegistry.compatible({"id": "VERSION_TEST"}), "mismatched and missing module version rejected")
+	var packet := state(1)
+	packet.merge({"game_id": "VERSION_TEST", "module_version": 2, "protocol_version": transport.PROTOCOL_VERSION, "room_phase_version": 2})
+	packet.players[0].user_id = ""
+	packet.players[0].command_results = [{"seq": 1, "round_id": 1, "tick": 1, "status": "applied"}]
+	var message := NakamaRTAPI.MatchData.new()
+	message.match_id = "REENTRANT_TEST"
+	message.op_code = 10
+	message.data = JSON.stringify(packet)
+	transport.match_id = message.match_id
+	var exit_on_result := func(_outcomes): transport.logout()
+	transport.command_results_updated.connect(exit_on_result)
+	transport._on_match_state(message)
+	check(transport.match_id.is_empty() and transport.snapshot.is_empty() and transport.command_results().is_empty(), "command result callback logout cannot restore old room state")
+	transport.command_results_updated.disconnect(exit_on_result)
+	transport.match_id = message.match_id
+	var exit_on_snapshot := func(_snapshot): transport.leave_room()
+	transport.snapshot_received.connect(exit_on_snapshot)
+	transport._on_match_state(message)
+	check(transport.match_id.is_empty() and transport.snapshot.is_empty() and transport.command_results().is_empty(), "snapshot callback leave prevents later old-room command emission")
+	transport.snapshot_received.disconnect(exit_on_snapshot)
+	var adapter := DepartureAdapter.new()
+	root.add_child(adapter)
+	var departure_socket := NakamaSocket.new(adapter, "127.0.0.1", 7350, "ws", false)
+	transport.socket = departure_socket
+	transport.connected = true
+	transport.match_id = "REENTRANT_TEST"
+	var rejoin_on_left := func(): transport.join_room("REENTRANT_TEST", "VERSION_TEST")
+	transport.left.connect(rejoin_on_left)
+	transport.leave_room()
+	check(adapter.packets.size() == 2 and adapter.packets[0].has("match_leave") and adapter.packets[1].has("match_join"), "old leave is dispatched before synchronous left listener rejoins same room")
+	check(transport._joining_id == "REENTRANT_TEST", "UI left listener can begin new join without awaiting old leave")
+	transport.left.disconnect(rejoin_on_left)
+	adapter.received.emit(JSON.stringify({"cid": adapter.packets[0].cid}).to_utf8_buffer())
+	await process_frame
+	await process_frame
+	check(transport._joining_id == "REENTRANT_TEST" and transport.socket == departure_socket, "old departure completion cannot clear pending new join")
+	transport.logout()
+	adapter.queue_free()
+	await process_frame
+	var immediate_adapter := DepartureAdapter.new()
+	root.add_child(immediate_adapter)
+	var immediate_socket := ImmediateDepartureSocket.new(immediate_adapter, "127.0.0.1", 7350, "ws", false)
+	transport.socket = immediate_socket
+	transport.connected = true
+	transport.match_id = "IMMEDIATE_TEST"
+	var order: Array = []
+	var observe_left := func(): order.append("left")
+	var observe_rooms := func(_rooms): order.append("rooms")
+	transport.left.connect(observe_left)
+	transport.rooms_updated.connect(observe_rooms)
+	transport.leave_room()
+	check(order == ["left"], "synchronous leave completion still emits left before lobby refresh")
+	await process_frame
+	await process_frame
+	check(order == ["left", "rooms"], "synchronous departure refresh runs after immediate UI release")
+	transport.left.disconnect(observe_left)
+	transport.rooms_updated.disconnect(observe_rooms)
+	transport.logout()
+	immediate_adapter.queue_free()
+	await process_frame
 	ModuleRegistry.modules = saved_modules
 	diag.observe_input_ack({"accepted_input_seq": 7, "accepted_input_tick": 30, "username": "PRIVATE_NAME"})
 	diag.observe_receipts([{"seq": 4, "tick": 32, "kind": "command", "secret": "PRIVATE_PAYLOAD"}])
+	diag.observe_command_results([{"seq": 5, "round_id": 1, "tick": 33, "status": "rejected_rate", "secret": "PRIVATE_PAYLOAD"}, {"seq": 5.5, "round_id": 1, "tick": 33, "status": "applied"}])
+	check(diag.summary(300).command_results == [{"seq": 5, "round_id": 1, "tick": 33, "status_code": 9}], "command diagnostics numeric whitelist excludes malformed and extra fields")
 	var safe := JSON.stringify(diag.summary(300))
 	check(not safe.contains("PRIVATE") and diag.summary(300).exact_input_receipts.size() == 1, "diagnostics whitelist drops identity and payload")
 	diag.observe_receipts([{"seq": 4.5, "tick": 32, "kind": "command"}])

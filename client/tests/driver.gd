@@ -4,6 +4,9 @@ var ui: Control
 var dir := ""
 var last_command := 0
 var working := false
+var last_input_seq := -1
+var module_failure := false
+var projection_failure := false
 
 func _initialize() -> void:
 	call_deferred("_start")
@@ -14,6 +17,9 @@ func _start() -> void:
 		quit(2)
 		return
 	DirAccess.make_dir_recursive_absolute(dir)
+	root.get_node("Session").room_failed.connect(func(category):
+		module_failure = module_failure or category == "module_failure"
+		projection_failure = projection_failure or category == "projection_failure")
 	if root.get_node("Session").arg("fixture") == "true":
 		ModuleRegistry.register_module("fixture", func(): return load("res://tests/fixture_view.gd").new())
 	ui = load("res://Main.tscn").instantiate()
@@ -54,6 +60,15 @@ func _execute(command: Dictionary) -> void:
 			session_node.join_room(str(command.room), "fixture")
 		"input":
 			ui.module_view.click_pulse()
+			last_input_seq = session_node._seq
+		"stale_command":
+			session_node._seq += 1
+			last_input_seq = session_node._seq
+			session_node.send(1, {"seq": last_input_seq, "round_id": session_node.snapshot.round_id, "kind": "command", "client_tick": maxi(0, int(session_node.snapshot.tick) - 100), "pulse": true})
+		"create":
+			session_node.create_room("Isolated fault test", "fixture", command.get("options", {}), 2)
+		"provider":
+			session_node.input_provider = ui.module_view.collect_input if command.get("enabled", true) else Callable()
 		"move":
 			ui.module_view.set_test_direction(Vector2(float(command.get("x", 0)), float(command.get("y", 0))))
 		"raw":
@@ -108,6 +123,7 @@ func _status(session_node: Node) -> Dictionary:
 		"host_self": state.get("host_id", "") == session_node.user_id() and not session_node.user_id().is_empty(),
 		"ready_self": ready, "score": score, "results": state.get("results", []).size(),
 		"user_id": session_node.user_id(), "snapshot": state, "own": own,
+		"last_input_seq": last_input_seq, "module_failure": module_failure, "projection_failure": projection_failure,
 		"presentation": presentation, "timeline": timeline,
 		"diagnostics": session_node.diagnostic_summary(),
 		"catalog": session_node.catalog.size(), "modules": ModuleRegistry.modules.size(),
