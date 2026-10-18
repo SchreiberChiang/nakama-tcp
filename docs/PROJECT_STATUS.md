@@ -64,4 +64,6 @@ Claude通过用户手动转发承担实际客户端实现，独占新client/test
 
 - 最新人工进展：用户确认iPhone可移动、计数、正常结算，再开归零并能移动；真实切后台返回后手机回登录页、电脑少一人；随后重登可重新加入、人数恢复2人且可准备。以上是用户真机反馈，未取得精确耗时，也未证明playing中按住输入的停止时限或三轮完整验收。用户要求剩余步骤一次给全、统一反馈。待完成连续三局、playing中后台、房主移交及最终空房回收；纯网络中断和故意延迟旧回调仍单列未测。
 
+- 已准备供用户手动转发的Claude窄实现任务，尚未声称已发送/开工：worktree `E:\AI\Nakama tcp\wechat-guidance-claude`，分支`claude/foundation-wechat-guidance-20261018`，固定基线`5b0ab6a983b5337b30158ea809c7fa410a4783ed`。任务全文位于负责人本机`.local/CLAUDE_WECHAT_GUIDANCE_TASK.txt`；独占测试entry、新acceptance_guide、跨平台专项测试及其计数包装器，只做游客/阶段/12秒结算/后台策略的易懂提示，不改服务器、生产UI/Session、桥接或现有验收包。Codex在收到实现前不得并行修改这些预留文件，负责只读复核与后续集成。它不替代当前冻结包的人工验证。
+
 背景材料：[2026-10-18讨论记录](https://chatgpt.com/space/page_3ebbd9fb63b0819183afe521e26c9c66)。其研究基线为 `37e7ca8`，其中“尚未实施”等描述属于历史阶段，以当前代码和本阶段证据为准。
