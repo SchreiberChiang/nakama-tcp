@@ -10,7 +10,7 @@ const output = await checkedGodot(
 );
 if (/PRIVATE_/.test(output)) throw Error("Cross-platform client output leaked a private sentinel.");
 // Exact count: a script error aborts a test function and would otherwise drop checks silently.
-const EXPECTED_CHECKS = 77;
+const EXPECTED_CHECKS = 78;
 if (!output.includes(`CROSS_PLATFORM_CHECKS ${EXPECTED_CHECKS} FAILURES 0`))
   throw Error(`Cross-platform client must report exactly ${EXPECTED_CHECKS} passing checks.`);
 console.log(output);

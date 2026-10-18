@@ -54,6 +54,7 @@ func _build_overlay(session: Node) -> void:
 	add_child(layer)
 	var bar := HBoxContainer.new()
 	bar.name = "AcceptanceBar"
+	bar.theme = main.theme
 	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -64,6 +65,7 @@ func _build_overlay(session: Node) -> void:
 	_overlay_button(bar, "SimulateForeground", "模拟返回前台", func(): lifecycle.return_foreground("simulated"))
 	_overlay_button(bar, "ToggleDiagnostics", "诊断", func(): diagnostics_panel.visible = not diagnostics_panel.visible)
 	diagnostics_panel = PANEL_SCRIPT.new()
+	diagnostics_panel.theme = main.theme
 	diagnostics_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	diagnostics_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	diagnostics_panel.offset_right = -8

@@ -30,7 +30,9 @@ func _ready() -> void:
 	get_tree().auto_accept_quit = false
 	var font := load("res://assets/fonts/TemplateCJK.otf") as Font
 	if font != null:
-		add_theme_font_override("font", font)
+		# Local Control overrides do not reach child labels, fields or buttons.
+		theme = Theme.new()
+		theme.default_font = font
 	add_theme_font_size_override("font_size", 22)
 	Session.authenticated.connect(_show_lobby)
 	Session.logged_out.connect(_show_login)

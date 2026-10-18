@@ -310,6 +310,8 @@ func _test_entry() -> void:
 	var marker := entry.find_child("IsolatedTestLabel", true, false) as Label
 	check(entry.main != null and entry.main.page == "login" and entry.find_child("PlayerName", true, false) != null and marker != null and marker.text == "隔离测试" and marker.is_visible_in_tree() and marker.get_global_rect().end.y <= entry.main.global_position.y, "entry runs original Main with a visible isolated-test marker above its controls")
 	check(not entry.lifecycle.has_bridge(), "native entry runs without the WeChat bridge")
+	var bundled_font := load("res://assets/fonts/TemplateCJK.otf") as Font
+	check(entry.find_child("SimulateBackground", true, false).get_theme_font("font") == bundled_font and entry.diagnostics_panel.label.get_theme_font("font") == bundled_font, "acceptance overlays use bundled CJK across CanvasLayer")
 	var created: Variant = ModuleRegistry.create("fixture")
 	check(created != null and created.get_script() == VIEW, "registered factory creates the cross-platform view")
 	if created != null:
