@@ -82,8 +82,116 @@ func _run() -> void:
 	await _test_guide_initial_background()
 	await _test_entry()
 	await _test_guide_layout()
+	await _test_diagnostics_geometry()
+	await _test_diagnostics_input_routing()
 	print("CROSS_PLATFORM_CHECKS %d FAILURES %d" % [checks, failures])
 	quit(1 if failures else 0)
+
+func diagnostic_payload() -> Array:
+	var maximum := 9007199254740991
+	var state := {"phase": "playing", "round_id": 2, "tick": 345, "diagnostics": {}, "token": "PRIVATE_TOKEN", "players": [{"user_id": "PRIVATE_UID", "username": "PRIVATE_NAME", "private_note": "PRIVATE_NOTE", "score": 2147483647, "position": {"x": maximum, "y": -maximum}, "velocity": {"x": 60, "y": -60}, "accepted_input_seq": 2147483647, "applied_input_seq": 2147483646}]}
+	for key in PANEL.SERVER_COUNTERS:
+		state.diagnostics[key] = 2147483647
+	var summary := {"enabled": true}
+	for key in PANEL.CLIENT_EVENTS:
+		summary[key] = {"count": 2147483647, "window_bytes": maximum, "window_interval_mean_ms": maximum, "window_interval_max_ms": maximum, "last_age_ms": maximum}
+	var presentation := {"enabled": true, "snapshot_receive_age_ms": maximum, "frame_callback_interval_ms": maximum, "sample_cpu_usec": maximum, "timeline": {"presentation_state": "extrapolating", "buffer_samples": 120, "buffer_depth_ms": maximum, "underrun_frames": 2147483647, "extrapolated_frames": 2147483647, "late_snapshot_drops": 2147483647, "timeline_resets": 2147483647}}
+	var commands: Array = []
+	for index in range(8):
+		commands.append({"seq": 2147483640 + index, "round_id": 2, "status": PANEL.COMMAND_STATUSES[index]})
+	return [state, "PRIVATE_UID", summary, presentation, commands]
+
+func _test_diagnostics_geometry() -> void:
+	var data := diagnostic_payload()
+	for dimensions in [Vector2(1152, 648), Vector2(1409, 648), Vector2(800, 600)]:
+		var holder := Control.new()
+		holder.size = dimensions
+		root.add_child(holder)
+		var entry: Control = load("res://tests/cross_platform/entry.tscn").instantiate()
+		holder.add_child(entry)
+		var panel: Control = entry.diagnostics_panel
+		var probe := spy_session()
+		panel.setup(probe, Callable())
+		panel.set_process(false) # Explicit synthetic observations, no live sampling.
+		panel.show()
+		panel.set_observations(data[0], data[1], data[2], data[3], data[4])
+		for frame in range(6):
+			await process_frame
+		var rect := panel.get_global_rect()
+		check(rect.position.x >= 0 and rect.end.x <= dimensions.x + 0.5 and rect.position.y >= entry.top_bar.get_global_rect().end.y and rect.end.y <= dimensions.y + 0.5 and panel.label.get_theme_font_size("font_size") >= 22, "diagnostics %dx%d: bounded readable body (panel %.0f..%.0f, font %d)" % [int(dimensions.x), int(dimensions.y), rect.position.x, rect.end.x, panel.label.get_theme_font_size("font_size")])
+		var collected := ""
+		for page in PANEL.PAGES:
+			panel.select_page(page)
+			for frame in range(3):
+				await process_frame
+			collected += panel.label.text
+			var body_rect: Rect2 = panel.scroll.get_global_rect()
+			var text_rect: Rect2 = panel.label.get_global_rect()
+			check(rect.encloses(body_rect) and text_rect.position.x >= body_rect.position.x - 0.5 and text_rect.end.x <= body_rect.end.x + 0.5 and panel.label.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART and panel.scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED, "diagnostics %dx%d %s body wraps inside a bounded vertical scroll" % [int(dimensions.x), int(dimensions.y), page])
+		var counters_complete := true
+		for key in PANEL.SERVER_COUNTERS:
+			counters_complete = counters_complete and collected.contains("（%s）：2147483647" % key)
+		check(counters_complete and collected.count("命令 seq ") == 8 and not collected.contains("PRIVATE") and collected.contains("非累计确认") and collected.contains("未知不等于失败") and collected.contains("RTT 缺测") and collected.contains("轮次 2") and collected.contains("tick 345"), "diagnostics groups retain every counter, 8 exact commands and privacy/unknown semantics")
+		var close_rect: Rect2 = panel.close_button.get_global_rect()
+		check(rect.encloses(close_rect) and close_rect.end.y <= panel.scroll.global_position.y and panel.close_button.size.y >= 44 and panel.tabs.all(func(button): return button.size.y >= 44), "diagnostics close and page controls remain visible touch targets above scrolling")
+		panel.select_page("服务端")
+		for frame in range(3):
+			await process_frame
+		panel.scroll.scroll_vertical = 90
+		await process_frame
+		var held_scroll: int = panel.scroll.scroll_vertical
+		var updates: int = panel.text_updates
+		var instance: int = panel.label.get_instance_id()
+		panel.hide()
+		panel._process(10.0)
+		panel.show()
+		await process_frame
+		check(held_scroll > 0 and panel.scroll.scroll_vertical == held_scroll and panel.text_updates == updates and panel.label.get_instance_id() == instance and probe.logins == 0 and probe.logouts == 0 and probe.submitted.is_empty(), "diagnostics hide/show preserves scroll and nodes without hidden updates or Session actions")
+		panel.set_observations({}, "", {}, {}, [])
+		for frame in range(3):
+			await process_frame
+		check(panel.label.text.contains("缺测") and panel.scroll.scroll_vertical <= panel.scroll.get_v_scroll_bar().max_value and rect.encloses(panel.scroll.get_global_rect()), "diagnostics smaller observations clamp scroll without overflowing")
+		holder.queue_free()
+		await process_frame
+		probe.free()
+
+func _test_diagnostics_input_routing() -> void:
+	var session := root.get_node("Session")
+	var entry: Control = load("res://tests/cross_platform/entry.tscn").instantiate()
+	root.add_child(entry)
+	session.match_id = "diagnostics-input-room"
+	session.snapshot = {"phase": "playing", "round_id": 1, "tick": 1, "game_id": "fixture", "host_id": "", "players": [{"user_id": "", "username": "甲", "connected": true, "ready": true, "score": 0}]}
+	session.joined.emit()
+	for frame in range(8):
+		await process_frame
+	var view: Control = entry.main.module_view
+	var at: Vector2 = view.pad.global_position + Vector2(view.pad.size.x * 5.0 / 6.0, view.pad.size.y * 0.5)
+	root.push_input(touch(90, at, true), true)
+	check(view.pad.direction() == Vector2.RIGHT, "viewport-dispatched touch drives the uncovered pad")
+	var before_seq: int = session._seq
+	root.push_input(mouse(view.pulse_button.get_global_rect().get_center(), true), true)
+	entry.diagnostics_panel.show()
+	root.push_input(mouse(view.pulse_button.get_global_rect().get_center(), false), true)
+	root.push_input(touch(91, at, true), true)
+	var covered_direction: Vector2 = view.pad.direction()
+	root.push_input(drag(91, at + Vector2(0, 12)), true)
+	root.push_input(touch(91, at, false), true)
+	check(covered_direction == Vector2.ZERO and view.pad.direction() == Vector2.ZERO and not view.pad.is_processing_input() and session._seq == before_seq and session.input_provider.is_valid(), "opening diagnostics clears held touch and intercepts overlay touches/Pulse release without pausing the provider")
+	session.snapshot.round_id = 2
+	session.snapshot.tick = 2
+	session.snapshot_received.emit(session.snapshot)
+	await process_frame
+	var new_view: Control = entry.main.module_view
+	check(new_view != view and not new_view.pad.is_processing_input() and new_view.pulse_button.disabled, "new playing view inherits open diagnostics input protection")
+	var close_at: Vector2 = entry.diagnostics_panel.close_button.get_global_rect().get_center()
+	root.push_input(mouse(close_at, true), true)
+	root.push_input(mouse(close_at, false), true)
+	root.push_input(touch(90, at, false), true)
+	check(not entry.diagnostics_panel.visible and new_view.pad.is_processing_input() and not new_view.pulse_button.disabled and new_view.pad.direction() == Vector2.ZERO and session._seq == before_seq, "viewport-dispatched Close restores current controls without replaying a held input or passing through Pulse")
+	session.match_id = ""
+	session.snapshot = {}
+	entry.queue_free()
+	await process_frame
 
 func _test_pad() -> void:
 	var pad: Control = PAD.new()

@@ -21,6 +21,7 @@ var _session_node: Node = null
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	resized.connect(_layout_header)
 	if ModuleRegistry.modules.has("fixture"):
 		registration_conflict = ModuleRegistry.version("fixture") != 1
 	else:
@@ -38,6 +39,8 @@ func _ready() -> void:
 	_layout_header()
 	if _session_node != null:
 		_session_node.logged_out.connect(_on_logged_out)
+		_session_node.snapshot_received.connect(_sync_diagnostic_controls)
+		_session_node.joined.connect(_sync_diagnostic_controls)
 	compact_login(_session_node)
 
 ## Static so the factory never captures this node. The entry removes its own
@@ -114,7 +117,7 @@ func _build_diagnostics(session: Node) -> void:
 	diagnostics_panel = PANEL_SCRIPT.new()
 	diagnostics_panel.theme = main.theme
 	var card := StyleBoxFlat.new()
-	card.bg_color = Color(0.06, 0.08, 0.11, 0.97)
+	card.bg_color = Color(0.06, 0.08, 0.11, 1.0)
 	card.border_color = Color(0.30, 0.55, 1.0)
 	card.set_border_width_all(1)
 	card.set_corner_radius_all(10)
@@ -123,12 +126,11 @@ func _build_diagnostics(session: Node) -> void:
 	card.content_margin_top = 10
 	card.content_margin_bottom = 10
 	diagnostics_panel.add_theme_stylebox_override("panel", card)
-	diagnostics_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	diagnostics_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	diagnostics_panel.offset_right = -12
+	diagnostics_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	layer.add_child(diagnostics_panel)
 	diagnostics_panel.setup(session, current_view)
 	diagnostics_panel.visible = false
+	diagnostics_panel.visibility_changed.connect(_sync_diagnostic_controls)
 
 func _bar_button(parent: Control, id: String, text: String, callback: Callable) -> Button:
 	var button := Button.new()
@@ -147,7 +149,9 @@ func _layout_header() -> void:
 	top_bar.offset_bottom = height
 	main.offset_top = height
 	if is_instance_valid(diagnostics_panel):
-		diagnostics_panel.offset_top = height + 8
+		var width := minf(1060.0, maxf(0.0, size.x - 24.0))
+		diagnostics_panel.position = Vector2((size.x - width) * 0.5, height + 8)
+		diagnostics_panel.size = Vector2(width, maxf(0.0, size.y - height - 20.0))
 
 ## Test packages preset host/port/TLS/key, so the login page hides those fields;
 ## Main still reads their (preset) values when the visible Login button is used.
@@ -164,12 +168,31 @@ func _on_logged_out() -> void:
 	# Main rebuilds the login page in its own earlier logged_out handler.
 	compact_login(_session_node)
 
+## The pad handles _input before GUI dispatch; an overlay's mouse_filter alone
+## cannot protect scrolling. Only covered test controls stop taking new presses;
+## Session, keyboard input and the authoritative round keep running.
+func _sync_diagnostic_controls(_snapshot: Variant = null) -> void:
+	var view: Variant = current_view()
+	if not is_instance_valid(view) or not is_instance_valid(diagnostics_panel):
+		return
+	if is_instance_valid(view.pad):
+		if diagnostics_panel.visible:
+			view.pad.clear()
+		view.pad.set_process_input(not diagnostics_panel.visible)
+	if is_instance_valid(view.pulse_button):
+		view.pulse_button.disabled = diagnostics_panel.visible
+
 func current_view() -> Variant:
 	return main.module_view if is_instance_valid(main) and is_instance_valid(main.module_view) else null
 
 func _exit_tree() -> void:
 	if is_instance_valid(_session_node) and _session_node.logged_out.is_connected(_on_logged_out):
 		_session_node.logged_out.disconnect(_on_logged_out)
+	if is_instance_valid(_session_node):
+		if _session_node.snapshot_received.is_connected(_sync_diagnostic_controls):
+			_session_node.snapshot_received.disconnect(_sync_diagnostic_controls)
+		if _session_node.joined.is_connected(_sync_diagnostic_controls):
+			_session_node.joined.disconnect(_sync_diagnostic_controls)
 	if is_instance_valid(lifecycle):
 		lifecycle.release()
 	if _owns_registration:
