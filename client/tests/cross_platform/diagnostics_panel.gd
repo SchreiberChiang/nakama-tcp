@@ -53,7 +53,7 @@ static func rows(snapshot: Variant, own_id: String, client_summary: Variant, pre
 	if summary.get("enabled") == true:
 		for event in CLIENT_EVENTS:
 			var item: Dictionary = summary.get(event) if summary.get(event) is Dictionary else {}
-			out.append("%s 计数 %s · 均隔 %s ms · 最大 %s ms · 距今 %s ms" % [event, _int(item.get("count")), _ms(item.get("window_interval_mean_ms")), _ms(item.get("window_interval_max_ms")), _ms(item.get("last_age_ms"))])
+			out.append("%s 计数 %s · 窗口字节 %s · 均隔 %s ms · 最大 %s ms · 距今 %s ms" % [event, _int(item.get("count")), _int(item.get("window_bytes")), _ms(item.get("window_interval_mean_ms")), _ms(item.get("window_interval_max_ms")), _ms(item.get("last_age_ms"))])
 	else:
 		out.append("客户端收发诊断未启用")
 	var server: Variant = state.get("diagnostics")

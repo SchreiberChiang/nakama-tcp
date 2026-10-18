@@ -228,13 +228,19 @@ func _test_bridge_adapter() -> void:
 	check(fake.unsubscribed == [7] and not bridge.has_subscription(), "adapter release is idempotent")
 	created[0].fire("hide")
 	check(states == ["show"], "released adapter ignores late callbacks")
-	var zero := FakeBridgeInterface.new()
-	zero.next_handle = 0
-	zero.hidden_now = "yes"
-	var zero_bridge = BRIDGE.new(zero, func(target: Callable): return FakeCallback.new(target))
-	check(zero_bridge.subscribe(func(_state): pass) and zero_bridge.subscription_handle() == 0 and not zero_bridge.is_hidden(), "handle 0 is valid and non-boolean isHidden counts as visible")
-	zero_bridge.release()
-	check(zero.unsubscribed == [0], "handle 0 is unsubscribed on release")
+	var failures_rejected := true
+	var failures_released := true
+	for failed_handle in [0, -1]:
+		var failed := FakeBridgeInterface.new()
+		failed.next_handle = failed_handle
+		var failed_bridge = BRIDGE.new(failed, func(target: Callable): return FakeCallback.new(target))
+		failures_rejected = failures_rejected and not failed_bridge.subscribe(func(state): states.append(state)) and not failed_bridge.has_subscription() and failed_bridge.subscription_handle() == -1
+		failures_released = failures_released and failed_bridge._callback == null and failed_bridge._interface == null and not failed_bridge._handler.is_valid() and not failed_bridge._create_callback.is_valid()
+		failed.subscribed[0].fire("hide")
+		failed_bridge.release()
+		failures_released = failures_released and failed.unsubscribed.is_empty() and states == ["show"]
+	check(failures_rejected, "zero and negative subscription handles are failures")
+	check(failures_released, "failed subscriptions clear references and ignore callbacks without unsubscribing")
 
 func _apply(values: Dictionary) -> Node:
 	for key in SETTINGS:
@@ -281,7 +287,7 @@ func _test_diagnostics() -> void:
 		"players": [{"user_id": "PRIVATE_UID", "username": "PRIVATE_NAME", "private_note": "PRIVATE_NOTE", "score": 3,
 			"position": {"x": 12.5, "y": -4.0}, "velocity": {"x": 60, "y": 0}, "accepted_input_seq": 41, "applied_input_seq": 40},
 			{"user_id": "PRIVATE_OTHER", "username": "PRIVATE_OTHER_NAME", "score": 99}]}
-	var summary := {"enabled": true, "send_attempt": {"count": 5, "window_interval_mean_ms": 33.3, "window_interval_max_ms": INF, "last_age_ms": 12}, "snapshot_received": {"count": NAN}}
+	var summary := {"enabled": true, "send_attempt": {"count": 5, "window_bytes": 120, "window_interval_mean_ms": 33.3, "window_interval_max_ms": INF, "last_age_ms": 12}, "send_completed": {"window_bytes": 456}, "snapshot_received": {"count": NAN, "window_bytes": 321}}
 	var presentation := {"enabled": true, "snapshot_receive_age_ms": 20, "frame_callback_interval_ms": 16.6, "sample_cpu_usec": 23, "gpu_ms": null,
 		"timeline": {"presentation_state": "PRIVATE_STATE", "buffer_samples": 4, "buffer_depth_ms": 66.0}}
 	var commands := [{"seq": 7, "round_id": 2, "tick": 300, "status": "applied"}, {"seq": 8, "round_id": 2, "tick": 301, "status": "PRIVATE_STATUS"}, "PRIVATE_RAW"]
@@ -290,7 +296,7 @@ func _test_diagnostics() -> void:
 	check(text.contains("阶段 playing") and text.contains("轮次 2") and text.contains("tick 345") and text.contains("(12.5, -4.0)") and text.contains("分数 3"), "panel shows own numeric state only")
 	check(text.contains("非累计确认") and text.contains("RTT 缺测") and text.contains("GPU 缺测"), "panel labels high-water acks and missing measurements")
 	check(text.contains("命令 seq 7 · 第 2 轮 · applied") and not text.contains("seq 8"), "panel lists exact whitelisted command outcomes only")
-	check(text.contains("最大 缺测 ms") and text.contains("received 10") and not text.contains("99"), "non-finite values become missing and other players stay hidden")
+	check(text.contains("最大 缺测 ms") and text.contains("received 10") and not text.contains("99") and text.contains("send_attempt 计数 5 · 窗口字节 120") and text.contains("send_completed 计数 缺测 · 窗口字节 456") and text.contains("snapshot_received 计数 缺测 · 窗口字节 321") and text.contains("snapshot_consumed 计数 缺测 · 窗口字节 缺测"), "panel shows actual send/receive byte windows, missing unavailable values and no other player data")
 	var off := "\n".join(PANEL.rows({}, "", {"enabled": false}, {"enabled": false}, []))
 	check(off.contains("诊断未启用") and off.contains("未知不等于失败"), "empty and disabled diagnostics stay explicit")
 
@@ -301,7 +307,8 @@ func _test_entry() -> void:
 	await process_frame
 	var session := root.get_node("Session")
 	check(ModuleRegistry.modules.has("fixture") and ModuleRegistry.version("fixture") == 1 and not entry.registration_conflict, "entry registers fixture module_version 1 for this process")
-	check(entry.main != null and entry.main.page == "login" and entry.find_child("PlayerName", true, false) != null, "entry runs the original Main login page")
+	var marker := entry.find_child("IsolatedTestLabel", true, false) as Label
+	check(entry.main != null and entry.main.page == "login" and entry.find_child("PlayerName", true, false) != null and marker != null and marker.text == "隔离测试" and marker.is_visible_in_tree() and marker.get_global_rect().end.y <= entry.main.global_position.y, "entry runs original Main with a visible isolated-test marker above its controls")
 	check(not entry.lifecycle.has_bridge(), "native entry runs without the WeChat bridge")
 	var created: Variant = ModuleRegistry.create("fixture")
 	check(created != null and created.get_script() == VIEW, "registered factory creates the cross-platform view")

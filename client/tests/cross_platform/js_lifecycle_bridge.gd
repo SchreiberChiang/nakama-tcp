@@ -22,9 +22,9 @@ func subscribe(handler: Callable) -> bool:
 	_handler = handler
 	_callback = _create_callback.call(_on_lifecycle)
 	var handle: Variant = _interface.subscribeLifecycle(_callback)
-	if not (handle is int or handle is float) or not is_finite(float(handle)) or float(handle) != floor(float(handle)):
-		_callback = null
-		_handler = Callable()
+	if not (handle is int or handle is float) or not is_finite(float(handle)) or float(handle) != floor(float(handle)) or float(handle) <= 0 or float(handle) > 9007199254740991.0:
+		# Zero is the platform's failure sentinel. No subscription was acquired.
+		release()
 		return false
 	_handle = int(handle)
 	_subscribed = true
@@ -50,6 +50,7 @@ func release() -> void:
 	_handler = Callable()
 	_callback = null
 	_interface = null
+	_create_callback = Callable()
 
 ## JavaScriptBridge passes callback arguments as one Array.
 func _on_lifecycle(args: Variant) -> void:

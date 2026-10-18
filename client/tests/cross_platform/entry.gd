@@ -21,6 +21,16 @@ func _ready() -> void:
 		_owns_registration = true
 	main = load("res://Main.tscn").instantiate()
 	add_child(main)
+	# Reserve a header strip, so the fixed test marker cannot cover Main controls.
+	main.offset_top = 32
+	var marker := Label.new()
+	marker.name = "IsolatedTestLabel"
+	marker.text = "隔离测试"
+	marker.position = Vector2(24, 4)
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker.add_theme_font_override("font", main.get_theme_font("font"))
+	marker.add_theme_font_size_override("font_size", 16)
+	add_child(marker)
 	var session := get_node_or_null("/root/Session")
 	lifecycle = LIFECYCLE_SCRIPT.new()
 	lifecycle.name = "Lifecycle"
