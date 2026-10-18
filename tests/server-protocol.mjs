@@ -78,6 +78,7 @@ test("version mismatch rejects before reserving seat", () => {
   for (const mismatch of [
     { protocol_version: "1", module_version: "1" },
     { protocol_version: "1", module_version: "2" },
+    { protocol_version: "2", module_version: "1" },
   ]) {
     assert.equal(
       c.matchJoinAttempt({}, {}, nk, d, 1, s, users[0], {
@@ -91,7 +92,7 @@ test("version mismatch rejects before reserving seat", () => {
   assert.equal(
     c.matchJoinAttempt({}, {}, nk, d, 1, s, users[0], {
       room_phase_version: "2",
-      protocol_version: "2",
+      protocol_version: "3",
       module_version: "1",
     }).accept,
     true,
