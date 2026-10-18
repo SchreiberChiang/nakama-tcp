@@ -116,15 +116,28 @@ func _changed() -> void:
 	queue_redraw()
 	direction_changed.emit(direction())
 
+static func _key(color: Color, border: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = color
+	box.border_color = border
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(14)
+	return box
+
+var _idle_key := _key(Color(0.17, 0.21, 0.28), Color(0.27, 0.33, 0.43))
+var _active_key := _key(Color(0.30, 0.55, 1.0), Color(0.55, 0.72, 1.0))
+
 func _draw() -> void:
 	var cell := size / 3.0
 	var active: Array = _pointers.values()
+	draw_circle(size * 0.5, cell.x * 0.22, Color(0.17, 0.21, 0.28))
 	for region in DIRECTIONS:
 		var offset: Vector2 = (DIRECTIONS[region] + Vector2.ONE) * cell
 		var rect := Rect2(offset, cell).grow(-4)
-		draw_rect(rect, Color(0.95, 0.75, 0.25, 0.9) if region in active else Color(0.35, 0.42, 0.55, 0.85))
+		var pressed: bool = region in active
+		draw_style_box(_active_key if pressed else _idle_key, rect)
 		var arrow: Vector2 = DIRECTIONS[region]
 		var center := rect.get_center()
-		var tip := center + arrow * cell.x * 0.25
-		var side := Vector2(-arrow.y, arrow.x) * cell.x * 0.18
-		draw_colored_polygon(PackedVector2Array([tip, center - arrow * cell.x * 0.1 + side, center - arrow * cell.x * 0.1 - side]), Color(0.08, 0.10, 0.14, 0.9))
+		var tip := center + arrow * cell.x * 0.22
+		var side := Vector2(-arrow.y, arrow.x) * cell.x * 0.16
+		draw_colored_polygon(PackedVector2Array([tip, center - arrow * cell.x * 0.1 + side, center - arrow * cell.x * 0.1 - side]), Color.WHITE if pressed else Color(0.80, 0.85, 0.92))

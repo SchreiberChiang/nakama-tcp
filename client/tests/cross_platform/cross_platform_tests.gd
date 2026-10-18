@@ -501,21 +501,68 @@ func _test_guide_layout() -> void:
 		var guide_rect := guide.get_global_rect()
 		var field := entry.find_child("PlayerName", true, false) as Control
 		var marker := entry.find_child("IsolatedTestLabel", true, false) as Control
-		var inside: bool = guide_rect.position.x >= 0 and guide_rect.end.x <= size.x + 0.5
-		var stacked: bool = guide_rect.position.y >= marker.get_global_rect().end.y - 0.5 and guide_rect.end.y <= entry.main.global_position.y + 0.5
-		var clear: bool = field != null and field.get_global_rect().position.y >= guide_rect.end.y
+		var buttons := entry.find_child("AcceptanceBar", true, false) as Control
+		var bar_rect: Rect2 = entry.top_bar.get_global_rect()
+		var inside: bool = guide_rect.position.x >= 0 and guide_rect.end.x <= size.x + 0.5 and buttons.get_global_rect().end.x <= size.x + 0.5
+		var row: bool = not guide_rect.intersects(marker.get_global_rect()) and not guide_rect.intersects(buttons.get_global_rect()) and bar_rect.encloses(guide_rect)
+		var clear: bool = field != null and field.get_global_rect().position.y >= bar_rect.end.y and entry.main.global_position.y >= bar_rect.end.y - 0.5
 		var bounded: bool = guide.get_line_count() <= guide.max_lines_visible and entry.main.offset_top <= 120.0
-		if not (guide.is_visible_in_tree() and guide.theme == entry.main.theme and inside and stacked and clear and bounded):
+		if not (guide.is_visible_in_tree() and guide.get_theme_font("font") == entry.main.get_theme_font("font") and inside and row and clear and bounded):
 			failures_seen.append("%dx%d" % [int(size.x), int(size.y)])
 		holder.queue_free()
 		await process_frame
-	check(failures_seen.is_empty(), "longest guide wraps within 3 lines above Main at desktop, landscape-phone and narrow widths")
+	check(failures_seen.is_empty(), "one top bar holds marker, longest guide (max 3 lines) and test buttons above Main at desktop, landscape-phone and narrow widths")
 	var entry: Control = load("res://tests/cross_platform/entry.tscn").instantiate()
 	root.add_child(entry)
 	await process_frame
 	await process_frame
-	var bar := entry.find_child("AcceptanceBar", true, false) as Control
 	var panel: Control = entry.diagnostics_panel
-	check(not entry.guide.get_global_rect().intersects(bar.get_global_rect()) and panel.offset_top >= entry.guide.get_global_rect().end.y - 0.5, "guide stays clear of the bottom test buttons and the diagnostics panel starts below it")
+	var panel_hidden: bool = not panel.visible
+	(entry.find_child("ToggleDiagnostics", true, false) as Button).pressed.emit()
+	await process_frame
+	check(panel_hidden and panel.visible and panel.offset_top >= entry.top_bar.get_global_rect().end.y and panel.get_theme_stylebox("panel").bg_color.a >= 0.9, "diagnostics card is hidden by default, opens on demand below the top bar and is opaque")
+	var spy := spy_session()
+	var base_session := root.get_node("Session")
+	var plain: bool = not entry.compact_login(base_session) and (entry.main.find_child("Host", true, false) as Control).visible
+	spy.cross_platform_enabled = true
+	var compacted: bool = entry.compact_login(spy)
+	var hidden_fields := ["Host", "Port", "TLS", "ServerKey"].all(func(id): return not (entry.main.find_child(id, true, false) as Control).visible)
+	var kept := ["PlayerName", "Login"].all(func(id): return (entry.main.find_child(id, true, false) as Control).visible)
+	check(plain and compacted and hidden_fields and kept, "only an enabled test session hides preset connection fields; name and login stay")
+	spy.free()
+	var main: Control = entry.main
+	var login := main.find_child("Login", true, false) as Button
+	var name_field := main.find_child("PlayerName", true, false) as Control
+	check(login.theme_type_variation == "PrimaryButton" and name_field.get_theme_font_size("font_size") == 20 and login.get_theme_stylebox("normal") is StyleBoxFlat, "shared Main theme reaches child controls with size 20 text and styled primary actions")
+	var column_ok: bool = name_field.get_global_rect().size.x <= main.COLUMN_WIDTH + 1.0
+	check(column_ok, "forms keep a bounded readable column on wide screens")
+	var session := base_session
+	session.match_id = "layout-room"
+	var players := [{"user_id": "", "username": "甲", "connected": true, "ready": true, "score": 1, "position": {"x": 0, "y": 0}, "velocity": {"x": 0, "y": 0}},
+		{"user_id": "other", "username": "乙", "connected": true, "ready": true, "score": 2, "position": {"x": 0, "y": 0}, "velocity": {"x": 0, "y": 0}}]
+	session.snapshot = {"phase": "lobby", "round_id": 1, "tick": 10, "game_id": "fixture", "host_id": "other", "min_players": 2, "players": players, "results": []}
+	session.joined.emit()
+	await process_frame
+	var leave := main.find_child("Leave", true, false) as Control
+	check(leave != null and leave.get_parent().name == "Header" and main.find_child("Ready", true, false).theme_type_variation == "PrimaryButton", "room page puts Leave in the title row and readies with a primary action")
+	session.snapshot = {"phase": "playing", "round_id": 1, "tick": 20, "game_id": "fixture", "host_id": "other", "min_players": 2, "players": players, "results": []}
+	session.snapshot_received.emit(session.snapshot)
+	for i in range(4):
+		await process_frame
+	var view: Control = main.module_view
+	var pad_rect: Rect2 = view.pad.get_global_rect()
+	var field_rect: Rect2 = view.field.get_global_rect()
+	var pulse_rect: Rect2 = view.pulse_button.get_global_rect()
+	check(view != null and pad_rect.end.x <= field_rect.position.x and pulse_rect.position.x >= field_rect.end.x and field_rect.size.y >= 200.0 and pad_rect.end.y <= get_root().get_visible_rect().size.y, "playing page puts the pad left, a tall field centre and Pulse right inside the screen")
+	view.update_extent({"far": {"position": Vector2(600, -420)}, "near": {"position": Vector2(5, 5)}}, 0.016)
+	var far: Vector2 = view.world_to_field(Vector2(600, -420))
+	view.update_extent({}, 0.016)
+	check(Rect2(Vector2.ZERO, view.field.size).has_point(far) and view._extent > view.MIN_EXTENT, "field zooms out so distant authoritative positions stay visible")
+	session.snapshot = {"phase": "results", "round_id": 1, "tick": 30, "game_id": "fixture", "host_id": "other", "min_players": 2, "players": players, "results": [{"username": "乙", "score": 2}, {"username": "甲", "score": 1}]}
+	session.snapshot_received.emit(session.snapshot)
+	await process_frame
+	check(main.find_child("ResultsCard", true, false) != null and main.find_child("Rematch", true, false).theme_type_variation == "PrimaryButton", "results render as a card with a primary rematch action")
+	session.match_id = ""
+	session.snapshot = {}
 	entry.queue_free()
 	await process_frame
