@@ -1,6 +1,6 @@
 # Godot + Nakama 通用联机底座
 
-分阶段目标、当前状态、未测项与接续入口见 [PROJECT_STATUS](docs/PROJECT_STATUS.md)。最近的时间轴两项审查与独立复验见 [TIMELINE_REVIEW](docs/TIMELINE_REVIEW.md)。
+分阶段目标、当前状态、未测项与接续入口见 [PROJECT_STATUS](docs/PROJECT_STATUS.md)。本轮需求逐项验收与证据边界见 [ACCEPTANCE](docs/ACCEPTANCE.md)；时间轴两项审查与独立复验见 [TIMELINE_REVIEW](docs/TIMELINE_REVIEW.md)。
 
 不安装任何具体游戏的 Godot 4.7.2 客户端和 Nakama 3.41.0 权威房间服务端。默认大厅显示“尚未安装玩法”；登录页、大厅、房间、结算页均是普通 2D 控件，没有背景 3D、预览、音乐或隐藏玩法实例。
 

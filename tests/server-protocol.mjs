@@ -297,6 +297,121 @@ test("30Hz simulation retains exactly twenty snapshots per second", () => {
   assert.equal(s.tick, 30);
 });
 
+test("10/20/30Hz snapshots preserve identical per-tick input authority", () => {
+  const plain = (value) => JSON.parse(JSON.stringify(value));
+  const authority = (s) => plain({
+    tick: s.tick,
+    phase: s.phase,
+    round_id: s.round_id,
+    game: s.game,
+    members: users.map(({ userId }) => {
+      const m = s.members[userId];
+      return {
+        seq: m.seq, acceptedTick: m.acceptedTick,
+        appliedSeq: m.appliedSeq, appliedTick: m.appliedTick,
+        receipts: m.receipts, commandResults: m.commandResults,
+        commands: m.commands, continuous: m.continuous,
+        continuousFresh: m.continuousFresh,
+      };
+    }),
+  });
+  let reference;
+  for (const rate of [10, 20, 30]) {
+    const initialized = c.matchInit(
+      { env: { GAME_SNAPSHOT_RATE: String(rate), GAME_DIAGNOSTICS: "1" } },
+      {}, nk,
+      { game_id: "fixture", name: "same inputs", host_id: "alice", capacity: 2 },
+    );
+    assert.equal(initialized.tickRate, 30);
+    const s = initialized.state;
+    assert.equal(s.snapshotRate, rate);
+    c.matchJoin({}, {}, nk, d, 0, s, users);
+    s.phase = "playing";
+    s.roundStart = 0;
+    out.length = 0; // Exclude the immediate join broadcasts from the cadence.
+    const trace = [authority(s)];
+    for (let tick = 1; tick <= 30; tick++) {
+      for (const user of users) {
+        const state = (seq, x, y) => send(s, seq, {
+          kind: "state", pulse: undefined, direction: { x, y },
+        }, tick, user);
+        const command = (seq, pulse = true) => send(s, seq, { pulse }, tick, user);
+        if (tick === 1) {
+          state(0, 1, 0);
+          state(1, 0, 1); // Coalesces seq 0 before either state can be consumed.
+          command(2);
+          command(3);
+          command(4);
+          command(4); // Duplicate while queued must not add another action.
+        }
+        if (tick === 5) state(5, -1, 0); // Last state; expires at tick 20.
+        if (tick === 8) {
+          command(6);
+          command(7, false);
+          command(6); // Duplicate must not replace its eventual terminal result.
+        }
+      }
+      trace.push(authority(s)); // Include queued/coalesced state before consumption.
+      assert.notEqual(loop(s, tick), null);
+      trace.push(authority(s));
+      for (const { userId } of users) {
+        const p = s.game.players[userId], m = s.members[userId];
+        if (tick === 1) {
+          assert.equal(p.x, 0);
+          assert.equal(p.y, 2);
+          assert.equal(p.score, 2);
+          assert.equal(m.commands.length, 1);
+          assert.equal(m.receipts.some(r => r.seq === 0), false);
+          assert.equal(m.receipts.some(r => r.seq === 1 && r.kind === "state"), true);
+        }
+        if (tick === 19) {
+          assert.equal(p.dx, -1);
+          assert.notEqual(m.continuous, null);
+        }
+        if (tick >= 20) {
+          assert.equal(p.x, -30);
+          assert.equal(p.y, 8);
+          assert.equal(p.dx, 0);
+          assert.equal(p.dy, 0);
+          assert.equal(m.continuous, null);
+          assert.equal(m.continuousFresh, false);
+        }
+      }
+    }
+    for (const { userId } of users) {
+      const m = s.members[userId];
+      assert.equal(s.game.players[userId].score, 4);
+      assert.equal(m.seq, 7);
+      assert.equal(m.acceptedTick, 8);
+      assert.equal(m.appliedSeq, 7);
+      assert.equal(m.appliedTick, 8);
+      assert.equal(m.commands.length, 0);
+      assert.equal(m.receipts.length, 7);
+      assert.deepEqual(plain(m.commandResults), [
+        { seq: 2, round_id: 1, tick: 1, status: "applied" },
+        { seq: 3, round_id: 1, tick: 1, status: "applied" },
+        { seq: 4, round_id: 1, tick: 2, status: "applied" },
+        { seq: 6, round_id: 1, tick: 8, status: "applied" },
+        { seq: 7, round_id: 1, tick: 8, status: "applied" },
+      ]);
+    }
+    if (reference) assert.deepEqual(trace, reference, `${rate}Hz authority differs`);
+    else reference = trace;
+    assert.equal(out.length, rate * 2);
+    assert.ok(out.every(packet => packet.op === 10));
+    for (const { userId } of users) {
+      const packets = out.filter(packet => packet.recipients.length === 1 &&
+        packet.recipients[0].userId === userId);
+      assert.equal(packets.length, rate);
+      for (const packet of packets) {
+        const snapshot = JSON.parse(packet.data);
+        assert.equal(snapshot.snapshot_rate, rate);
+        assert.equal(snapshot.tick_rate, 30);
+      }
+    }
+  }
+});
+
 const stateInput = { kind: "state", pulse: undefined, direction: { x: 1, y: 0 } };
 test("command outcome survives later state and reports exact expiry", () => {
   const s = room();
