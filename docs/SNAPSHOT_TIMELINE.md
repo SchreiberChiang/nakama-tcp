@@ -1,5 +1,7 @@
 # 可选移动快照呈现
 
+返回姿态的每个分支均与历史字典隔离，包括只出现在后一帧的新玩家。重缓冲若保持的来源时间已超过最新权威样本，仍以同一时间差重建受限外推姿态，不能仅因重锚退回该样本的位置。此保证限权威数据和配置未变化；新权威可纠正先前外推的误差，不保证坐标单调或任意网络条件下连续平滑。修复与复现见 [TIMELINE_REVIEW](TIMELINE_REVIEW.md)。
+
 `core/snapshot_timeline.gd` 是纯展示工具，默认不创建；普通登录/大厅/房间/结算仍为 2D UI。UI在configure后用`set_presentation_scope`注入当前Session的scope；模块显式调用 `enable_timeline(delay_ms, extrapolation_ms)`，在 `apply_snapshot` 中提交，再在自己的 `_process(delta)` 调用 `sample_presentation(delta)`。模块输入只通过 Session，时间轴不预测输入、不重演、不做碰撞或规则结算。
 
 快照沿用房间 tick/tick_rate/snapshot_rate/round_id/phase，最多消费8名玩家的 `user_id`、`position:{x,y}`、可选 `velocity:{x,y}`、可选弧度 `angle` 与 `stationary`。单位由模块定义，可先映射自己领域的快照到此合同。非有限位置被排除；非playing或stationary不外推。生成的字典不能用于上传权威位置。返回姿态与内部历史隔离，可由视图修改。

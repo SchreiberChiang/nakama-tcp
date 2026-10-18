@@ -218,6 +218,10 @@ func sample(now_seconds: float) -> Dictionary:
 		playback_rate = 0.0
 		recovery_age_ms = 0.0
 		recovery_debt_ms = 0.0
+		if float(previous_presented) > newest:
+			# Recreate the same bounded extrapolation, rather than snapping to
+			# the latest authority while the displayed source time stays fixed.
+			return _extrapolated_poses(clampf(float(previous_presented) - newest, 0.0, allowed))
 		return _poses_at(float(previous_presented))
 	_rebuffering = false
 	if not _playhead_ready:
@@ -318,7 +322,7 @@ func _poses_at(at_seconds: float) -> Dictionary:
 				var start: Dictionary = lower.poses[id]
 				result[id] = {"position": (start.position as Vector2).lerp(end.position, alpha), "angle": lerp_angle(float(start.angle), float(end.angle), alpha), "velocity": (start.velocity as Vector2).lerp(end.velocity, alpha)}
 			else:
-				result[id] = end
+				result[id] = end.duplicate(true)
 		return result
 	return frames[-1].poses.duplicate(true)
 

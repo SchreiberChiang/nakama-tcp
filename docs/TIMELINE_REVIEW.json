@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-18",
+  "stage": "phase1-timeline-closeout",
+  "baseline": "2eaea2d2802af549420add49c014fe35326814ce",
+  "branch": "codex/foundation-phase1-20261018",
+  "status": "pass",
+  "protocol_version": 2,
+  "evidence_owner": "primary agent independently ran baseline reproduction, affected tests and full suite",
+  "author_report": { "checks": 97, "baseline_failures": 4, "fixed_failures": 0 },
+  "independent_read_only_review": { "blocking_findings": 0, "executed_tests": false },
+  "primary_baseline_retest": { "checks": 97, "expected_failures": 4, "exit_code": 1 },
+  "primary_fixed_retest": { "checks": 97, "failures": 0, "exit_code": 0 },
+  "primary_full_run": {
+    "exit_code": 0,
+    "production_build": true,
+    "fixture_build": true,
+    "launcher_assertions": 24,
+    "server_protocol": 33,
+    "timeline_and_session": 97,
+    "sdk": 55,
+    "empty_clients": 10,
+    "fixture_clients": 56,
+    "diagnostics_clients": 58,
+    "input_fault_clients": 12,
+    "projection_fault_clients": 13,
+    "wechat_http_mocks": 7,
+    "source_audit_files_during_full_run": 142
+  },
+  "pack": {
+    "files": 78,
+    "bytes": 12143008,
+    "sha256": "63731b2380ee690c6ca48f6335bbee4cb88e3c4436075d67d15df3857bf879ea",
+    "empty_registry": true,
+    "has_fixture": false,
+    "bad_nodes": [],
+    "packed_scene": "login"
+  },
+  "cleanup": {
+    "network_runs": 5,
+    "ipc_remaining": 0,
+    "observations_safe": true,
+    "listening_test_ports": 0,
+    "owned_runtime_processes": 0
+  },
+  "scope": "Windows same-PC loopback and deterministic arrival/sample injection",
+  "not_tested": ["WeChat device", "WeChat IDE", "mobile", "Web", "WAN", "Linux/macOS", "long load", "subjective smoothness", "Claude review", "Dot review"],
+  "limits": [
+    "Hold continuity assumes unchanged authoritative samples and configuration",
+    "New authority may correct extrapolation; coordinate monotonicity is not guaranteed",
+    "No new cache, prediction, replay, session restoration or delta synchronization",
+    "PCK evidence does not establish a standalone platform executable"
+  ]
+}

@@ -57,7 +57,64 @@ func test_offset_increase(hz: int, gap: bool) -> void:
 	check(underrun_seconds < 1.5, "+250ms maintained 10s bounded underrun %dHz gap=%s seconds=%.3f" % [hz, gap, underrun_seconds])
 	check(stable_buffer and line.clock_reanchors > 0, "playable reserve restored within 2.2s %dHz gap=%s" % [hz, gap])
 	check(monotonic, "offset increase never rewinds shown source time %dHz gap=%s" % [hz, gap])
+func test_extrapolated_reanchor(extrapolation_ms: float, motion: String, delay_ms: float = 150, recovery_ms: float = 100, arrival_frame: int = 18) -> void:
+	var line = TIMELINE.new()
+	line.configure(delay_ms, extrapolation_ms)
+	line.configure_recovery(recovery_ms)
+	var poses_before: Dictionary = {}
+	var source_before := 0.0
+	var saw_hold := false
+	var stable_hold := true
+	var detached := true
+	for frame in range(90):
+		var now := frame / 60.0
+		if frame == 0 or frame == arrival_frame:
+			var packet := state(0 if frame == 0 else 3)
+			packet.players[0].position.y = -2.0 * float(packet.tick)
+			packet.players[0].angle = 0.7
+			packet.players[0].velocity.y = -60.0
+			if motion == "stationary": packet.players[0].stationary = true
+			if motion == "missing": packet.players[0].erase("velocity")
+			line.push_snapshot(packet, now, "reanchor-hold")
+		var poses: Dictionary = line.sample(now)
+		if frame > arrival_frame and line.state == "buffering" and line.clock_reanchors > 0:
+			saw_hold = true
+			stable_hold = stable_hold and poses.LOCAL_TEST.position.is_equal_approx(poses_before.LOCAL_TEST.position) and is_equal_approx(poses.LOCAL_TEST.angle, 0.7) and is_equal_approx(float(line.presented_time_seconds), source_before)
+			var expected: Dictionary = poses.duplicate(true)
+			poses.LOCAL_TEST.position = Vector2(999, 999)
+			poses.LOCAL_TEST.velocity = Vector2(999, 999)
+			poses.LOCAL_TEST.angle = 999.0
+			poses = line.sample(now)
+			detached = detached and poses == expected and line.frames[-1].poses.LOCAL_TEST.position == Vector2(3, -6)
+		if frame >= arrival_frame:
+			# Compare only samples with unchanged authority, never a new packet's correction.
+			poses_before = poses.duplicate(true)
+			source_before = float(line.presented_time_seconds)
+	var label := "extra=%s motion=%s delay=%s recovery=%s" % [extrapolation_ms, motion, delay_ms, recovery_ms]
+	check(saw_hold and stable_hold, "reanchor preserves already presented pose and source " + label)
+	check(detached, "mutating reanchor hold output cannot affect repeated hold or history " + label)
+	var expected_end := Vector2(3, -6)
+	if motion == "moving": expected_end += Vector2(30, -60) * extrapolation_ms / 1000.0
+	check(poses_before.LOCAL_TEST.position.is_equal_approx(expected_end), "reanchor retains bounded authoritative velocity only " + label)
+
 func _run() -> void:
+	for extra in [0.0, 33.0]:
+		for motion in ["moving", "stationary", "missing"]:
+			test_extrapolated_reanchor(extra, motion)
+	# Default recovery threshold, with an explicitly configured larger delay.
+	test_extrapolated_reanchor(33, "moving", 500, 350, 30)
+	var joining = TIMELINE.new()
+	joining.configure(0)
+	var before_join := state(0)
+	before_join.players.clear()
+	joining.push_snapshot(before_join, 0.0, "joining")
+	joining.push_snapshot(state(3), 0.1, "joining")
+	var joined_pose: Dictionary = joining.sample(0.05)
+	joined_pose.LOCAL_TEST.position = Vector2(999, 999)
+	joined_pose.LOCAL_TEST.velocity = Vector2(999, 999)
+	joined_pose.LOCAL_TEST.angle = 999.0
+	check(joining.frames[-1].poses.LOCAL_TEST.position == Vector2(3, 0) and joining.frames[-1].poses.LOCAL_TEST.velocity == Vector2(30, 0) and joining.frames[-1].poses.LOCAL_TEST.angle == 0.0, "newly joined interpolated pose cannot mutate history")
+	check(joining.sample(0.05).LOCAL_TEST.position == Vector2(3, 0), "newly joined pose mutation cannot affect later samples")
 	for hz in [10, 20]:
 		test_offset_increase(hz, false)
 		test_offset_increase(hz, true)
