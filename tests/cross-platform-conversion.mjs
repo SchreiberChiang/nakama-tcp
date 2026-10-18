@@ -1,0 +1,104 @@
+import assert from 'node:assert/strict';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { ROOT, convertCrossPlatform, parseArgs } from '../scripts/convert-cross-platform.mjs';
+
+const base = path.join(ROOT, '.local/cross-platform'); mkdirSync(base, { recursive: true });
+const root = mkdtempSync(path.join(base, 'conversion-unit-'));
+const digest = value => createHash('sha256').update(value).digest('hex');
+const put = (relative, data) => { const target = path.join(root, relative); mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, data); return target; };
+const json = target => JSON.parse(readFileSync(target, 'utf8'));
+const out = name => path.join(root, '.local/cross-platform', name);
+let count = 0;
+const test = action => { action(); count++; };
+try {
+  const cliSource = `import fs from 'node:fs'; import path from 'node:path';
+const [step, ...args] = process.argv.slice(2);
+const get = key => args[args.indexOf('--' + key) + 1];
+fs.appendFileSync('trace.jsonl', JSON.stringify({step,args}) + '\\n');
+if (step === 'convert') {
+ if (!args.includes('--no-timing')) throw Error('missing no-timing');
+ const bridge = fs.readFileSync(get('interfaces'), 'utf8');
+ if (!bridge.includes('decodedBridge') || !bridge.includes('lifecycleBridge')) throw Error('missing bridge');
+ const target = path.join(get('out'), 'minigame'); fs.mkdirSync(target, {recursive:true});
+ fs.mkdirSync(path.join(target,'godot-data')); fs.writeFileSync(path.join(target,'godot-data/local-interfaces.js'),bridge);
+ const appid = args.includes('--appid-from') ? JSON.parse(fs.readFileSync(get('appid-from'))).appid : 'wx0000000000000000';
+ fs.writeFileSync(path.join(target,'project.config.json'),JSON.stringify({appid}));
+ console.log('PRIVATE_RAW_APPID ' + appid);
+}
+if (step === 'verify' && !fs.existsSync(path.join(get('project'),'project.config.json'))) process.exit(2);
+`;
+  const tool = path.join(root, 'tool'), engine = path.join(root, 'engine'), packageDir = path.join(root, 'package');
+  put('tool/convert/convert.mjs', cliSource);
+  const transformer = put('tool/convert/transformer.exe', 'FAKE_TRANSFORMER');
+  put('tool/convert/convert.toolchain.json', JSON.stringify({transformer:'transformer.exe',transformerVersion:'1.0.35',transformerSha256:digest('FAKE_TRANSFORMER'),plugin:{name:'test'}}));
+  put('engine/godot.js', 'var Godot = {};'); put('engine/godot.wasm', Buffer.from([0,97,115,109,1,0,0,0]));
+  mkdirSync(path.join(engine, 'unrelated-directory'));
+  put('platform/wechat/decoded-json.js', 'globalThis.decodedBridge = true;');
+  put('platform/wechat/acceptance-lifecycle.js', 'globalThis.lifecycleBridge = true;');
+  const pck = Buffer.alloc(24); pck.write('GDPC'); pck.writeUInt32LE(4,8); pck.writeUInt32LE(7,12); pck.writeUInt32LE(2,16);
+  put('package/test.pck', pck);
+  const manifest = {schema:1,source_sha:'a'.repeat(40),source_dirty:true,godot_version:'4.7.2.stable.test',stage:'exported-and-audited',entry:'res://tests/cross_platform/entry.tscn',development_key:'defaultkey',pck:{file:'test.pck',bytes:pck.length,sha256:digest(pck)}};
+  const manifestFile = put('package/manifest.json', JSON.stringify(manifest));
+  const options = {root,tool,engine,packageDir};
+  const appid = 'wx1234567890abcdef';
+  const summary = await convertCrossPlatform({...options,out:out('success'),appid}); count++;
+  const trace = readFileSync(path.join(out('success'),'trace.jsonl'),'utf8').trim().split('\n').map(JSON.parse);
+  test(() => assert.deepEqual(trace.map(call=>call.step), ['check','convert','verify']));
+  test(() => assert.ok(trace[1].args.includes('--no-timing')));
+  test(() => assert.ok(trace[1].args.includes('--appid-from') && !trace[1].args.includes(appid)));
+  test(() => assert.equal(json(path.join(out('success'),'wechat/minigame/project.config.json')).appid, appid));
+  test(() => assert.equal(summary.verified, true));
+  test(() => assert.equal(summary.timing_enabled, false));
+  test(() => assert.equal(summary.pck.sha256, digest(pck)));
+  test(() => assert.equal('protocol_version' in summary, false));
+  const evidence = readFileSync(path.join(out('success'),'conversion-summary.json'),'utf8');
+  test(() => assert.ok(!evidence.includes(appid) && !evidence.includes(root) && !evidence.includes('PRIVATE_RAW')));
+  test(() => assert.deepEqual(json(manifestFile), manifest));
+  test(() => assert.deepEqual(readFileSync(path.join(packageDir,'test.pck')),pck));
+  await assert.rejects(convertCrossPlatform({...options,out:out('success')}), /already exists/); count++;
+  await assert.rejects(convertCrossPlatform({...options,out:path.join(root,'outside')}), /under .local/); count++;
+  await assert.rejects(convertCrossPlatform({...options,out:out('bad-appid'),appid:'SECRET'}), /Invalid AppID/); count++;
+  test(() => assert.equal(existsSync(out('bad-appid')),false));
+  writeFileSync(manifestFile, JSON.stringify({...manifest,pck:{...manifest.pck,sha256:'b'.repeat(64)}}));
+  await assert.rejects(convertCrossPlatform({...options,out:out('bad-hash')}), /does not match/); count++;
+  test(() => assert.equal(existsSync(out('bad-hash')),false));
+  writeFileSync(manifestFile,JSON.stringify({...manifest,protocol_version:2}));
+  await assert.rejects(convertCrossPlatform({...options,out:out('bad-protocol')}), /protocol/); count++;
+  writeFileSync(manifestFile,JSON.stringify(manifest));
+  const wrongTransformer = put('wrong.exe','WRONG');
+  await assert.rejects(convertCrossPlatform({...options,out:out('bad-transformer'),transformer:wrongTransformer}), /pin/); count++;
+  // Real fake-tool subprocess failure must stop the pipeline and omit success evidence.
+  put('tool/convert/convert.mjs',cliSource.replace("if (step === 'convert') {", "if (step === 'check') { console.log('PRIVATE_RAW_ERROR'); process.exit(1); }\nif (step === 'convert') {"));
+  await assert.rejects(convertCrossPlatform({...options,out:out('check-failure')}), error=>error.message==='wechat-wasm-slim check failed; conversion is not accepted'); count++;
+  test(() => assert.equal(readFileSync(path.join(out('check-failure'),'trace.jsonl'),'utf8').trim().split('\n').length,1));
+  test(() => assert.equal(existsSync(path.join(out('check-failure'),'conversion-summary.json')),false));
+  put('tool/convert/convert.mjs',cliSource.replace("if (step === 'convert') {", "if (step === 'convert') { console.log('PRIVATE_RAW_CONVERT'); process.exit(1); }\nif (step === 'convert') {"));
+  await assert.rejects(convertCrossPlatform({...options,out:out('convert-failure')}), /convert failed/); count++;
+  test(() => assert.equal(readFileSync(path.join(out('convert-failure'),'trace.jsonl'),'utf8').trim().split('\n').length,2));
+  test(() => assert.equal(existsSync(path.join(out('convert-failure'),'conversion-summary.json')),false));
+  put('tool/convert/convert.mjs',cliSource.replace("if (step === 'verify' &&", "if (step === 'verify') { console.log('PRIVATE_RAW_VERIFY'); process.exit(1); }\nif (step === 'verify' &&"));
+  await assert.rejects(convertCrossPlatform({...options,out:out('verify-failure')}), /verify failed/); count++;
+  test(() => assert.equal(existsSync(path.join(out('verify-failure'),'conversion-summary.json')),false));
+  put('tool/convert/convert.mjs',cliSource);
+  // Directory junctions are available on Windows without symlink privileges.
+  const link = path.join(root,'engine-link'); symlinkSync(engine,link,process.platform==='win32'?'junction':'dir');
+  await assert.rejects(convertCrossPlatform({...options,engine:link,out:out('linked-input')}), /Symlink/); count++;
+  mkdirSync(out('real-parent'),{recursive:true});
+  const linkedParent=out('linked-parent'); symlinkSync(out('real-parent'),linkedParent,process.platform==='win32'?'junction':'dir');
+  await assert.rejects(convertCrossPlatform({...options,out:path.join(linkedParent,'child')}), /Symlink/); count++;
+  test(() => assert.equal(existsSync(path.join(out('real-parent'),'child')),false));
+  test(() => assert.throws(()=>parseArgs(['--appid',appid,'--appid',appid]),/duplicate/));
+  test(() => assert.throws(()=>parseArgs(['--unknown','x']),/Invalid/));
+  // CLI must not print a failed filesystem path or malformed private AppID.
+  let failed;
+  try { execFileSync(process.execPath,[path.join(ROOT,'scripts/convert-cross-platform.mjs'),'--tool',path.join(root,'missing-PRIVATE'),'--engine',engine,'--package',packageDir,'--out',out('cli-failure'),'--appid',appid],{encoding:'utf8',stdio:'pipe'}); }
+  catch(error) { failed=error; }
+  test(() => assert.equal(failed.status,1));
+  test(() => assert.ok(!String(failed.stderr).includes(root) && !String(failed.stderr).includes(appid)));
+  console.log(`PASS cross-platform conversion: ${count} checks with fake external tool/PCK only; no actual conversion or WeChat runtime`);
+} finally {
+  rmSync(root,{recursive:true,force:true});
+}
