@@ -4,6 +4,14 @@ interface Member extends ChatMember {
   ready: boolean;
   staying: boolean;
   seq: number;
+  acceptedTick: number;
+  appliedSeq: number;
+  appliedTick: number;
+  receipts: { seq: number; tick: number; kind: string }[];
+  commands: QueuedInput[];
+  continuous: QueuedInput | null;
+  continuousFresh: boolean;
+  diagnostics: any;
   window: number;
   inputs: number;
   controls: number;
@@ -35,6 +43,7 @@ interface RoomState extends ChatRoomState {
   tick: number;
   round_id: number;
   results: any[];
+  diagnosticsEnabled: boolean;
   snapshotRate: number;
   snapshotAccumulator: number;
 }
@@ -84,8 +93,12 @@ function roomLabel(s: RoomState): string {
     room_phase_version: ROOM_PHASE_VERSION,
   });
 }
-function snapshot(s: RoomState): any {
-  var result = GAMES[s.game_id].snapshot(s.game);
+function snapshot(s: RoomState, recipientId: string): any {
+  var module = GAMES[s.game_id];
+  var result = JSON.parse(JSON.stringify(module.snapshot(s.game, recipientId)));
+  delete result.diagnostics;
+  result.protocol_version = PROTOCOL_VERSION;
+  result.module_version = module.version;
   result.tick = s.tick;
   result.tick_rate = TICK_RATE;
   result.snapshot_rate = s.snapshotRate;
@@ -101,7 +114,16 @@ function snapshot(s: RoomState): any {
   result.host_change = s.host_change;
   result.countdown = s.countdown;
   result.round_id = s.round_id;
-  result.results = s.results;
+  result.results =
+    s.phase === "results"
+      ? JSON.parse(
+          JSON.stringify(module.projectResults(s.game, s.results, recipientId)),
+        )
+      : [];
+  if (!Array.isArray(result.players) || !Array.isArray(result.results))
+    throw Error("Invalid projection");
+  if (s.diagnosticsEnabled && s.members[recipientId])
+    result.diagnostics = s.members[recipientId].diagnostics;
   // Clients number and colour players by position: list them in join order.
   var rank = function (p: any): number {
     var i = s.order.indexOf(p.user_id);
@@ -122,12 +144,34 @@ function snapshot(s: RoomState): any {
     p.connected = !!s.members[p.user_id];
     p.staying = !!s.members[p.user_id] && s.members[p.user_id].staying;
     // Schema/round/sequence accepted, not a promise the game applied it.
-    p.accepted_input_seq = s.members[p.user_id] ? s.members[p.user_id].seq : -1;
+    var member = s.members[p.user_id];
+    p.accepted_input_seq = member ? member.seq : -1;
+    p.accepted_input_tick = member ? member.acceptedTick : -1;
+    p.applied_input_seq = member ? member.appliedSeq : -1;
+    p.applied_input_tick = member ? member.appliedTick : -1;
+    delete p.input_receipts;
+    if (member && p.user_id === recipientId) p.input_receipts = member.receipts;
   });
   return result;
 }
 function broadcast(d: nkruntime.MatchDispatcher, s: RoomState): void {
-  d.broadcastMessage(10, JSON.stringify(snapshot(s)));
+  memberIds(s).forEach(function (id) {
+    var data: string;
+    try {
+      data = JSON.stringify(snapshot(s, id));
+      if (utf8Bytes(data) > 65536) throw Error("Snapshot too large");
+    } catch (e) {
+      if (s.diagnosticsEnabled)
+        bump(s.members[id].diagnostics, "projection_error", 1);
+      return;
+    }
+    d.broadcastMessage(10, data, [s.members[id].presence]);
+    if (s.diagnosticsEnabled) {
+      wallGap(s.members[id].diagnostics, "send");
+      bump(s.members[id].diagnostics, "sent", 1);
+      bump(s.members[id].diagnostics, "sent_bytes", utf8Bytes(data));
+    }
+  });
 }
 function parseObject(raw: string): any {
   var obj: any;
@@ -148,12 +192,15 @@ var rpcCatalog: nkruntime.RpcFunction = function (ctx, logger, nk, payload) {
   return JSON.stringify({
     room_flow_version: 1,
     room_phase_version: ROOM_PHASE_VERSION,
+    protocol_version: PROTOCOL_VERSION,
     room_capacity: true,
     chat: chatCapability(),
     games: Object.keys(GAMES).map(function (id) {
       var g = GAMES[id];
       return {
         id: g.id,
+        module_version: g.version,
+        input_kinds: g.inputKinds,
         title: g.title,
         description: g.description,
         choices: g.choices || [],
@@ -253,6 +300,24 @@ var matchInit: nkruntime.MatchInitFunction<RoomState> = function (
   nk,
   p,
 ) {
+  var module = GAMES[p.game_id];
+  if (
+    !module ||
+    module.id !== p.game_id ||
+    !finite(module.version) ||
+    Math.floor(module.version) !== module.version ||
+    module.version < 1 ||
+    module.version > 2147483647 ||
+    !module.snapshot ||
+    !module.projectResults ||
+    !Array.isArray(module.inputKinds) ||
+    !module.inputKinds.length ||
+    module.inputKinds.some(function (kind) {
+      return kind !== "state" && kind !== "command";
+    }) ||
+    (module.inputKinds.indexOf("state") >= 0 && !module.inputExpired)
+  )
+    throw Error("Invalid module contract");
   var s: RoomState = {
     game_id: p.game_id,
     options: normalizeRoomOptions(GAMES[p.game_id], p.options),
@@ -279,6 +344,7 @@ var matchInit: nkruntime.MatchInitFunction<RoomState> = function (
     round_id: 1,
     chatSequence: 0,
     results: [],
+    diagnosticsEnabled: !!ctx.env && ctx.env.GAME_DIAGNOSTICS === "1",
     snapshotRate: configuredSnapshotRate(ctx),
     snapshotAccumulator: 0,
   };
@@ -295,6 +361,15 @@ var matchJoinAttempt: nkruntime.MatchJoinAttemptFunction<RoomState> = function (
   metadata,
 ) {
   var module = GAMES[s.game_id];
+  if (
+    (metadata || {}).protocol_version !== String(PROTOCOL_VERSION) ||
+    (metadata || {}).module_version !== String(module.version)
+  )
+    return {
+      state: s,
+      accept: false,
+      rejectMessage: "Protocol or module version mismatch",
+    };
   var rejection = module.joinRejection
     ? module.joinRejection(s.game, metadata || {})
     : "";
@@ -354,6 +429,14 @@ var matchJoin: nkruntime.MatchJoinFunction<RoomState> = function (
       ready: false,
       staying: false,
       seq: -1,
+      acceptedTick: -1,
+      appliedSeq: -1,
+      appliedTick: -1,
+      receipts: [],
+      commands: [],
+      continuous: null,
+      continuousFresh: false,
+      diagnostics: newStats(),
       window: Math.floor(tick / TICK_RATE),
       inputs: 0,
       controls: 0,
@@ -445,6 +528,15 @@ function handleMessage(
 ): void {
   var m = s.members[msg.sender.userId];
   if (!m || m.presence.sessionId !== msg.sender.sessionId) return;
+  if (s.diagnosticsEnabled) {
+    var stats = m.diagnostics;
+    wallGap(stats, "receive");
+    bump(stats, "received", 1);
+    bump(stats, "received_bytes", msg.data.byteLength);
+    stats.receive_gap_ticks =
+      stats.last_receive_tick < 0 ? 0 : tick - stats.last_receive_tick;
+    stats.last_receive_tick = tick;
+  }
   // Only chat has its own payload/rate budget; gameplay controls retain 256 bytes.
   if (chatHandleRoomMessage(nk, d, s, tick, msg)) return;
   var w = Math.floor(tick / TICK_RATE);
@@ -470,6 +562,12 @@ function handleMessage(
       return;
     }
     if (
+      (p.kind !== "state" && p.kind !== "command") ||
+      GAMES[s.game_id].inputKinds.indexOf(p.kind) < 0 ||
+      !finite(p.client_tick) ||
+      Math.floor(p.client_tick) !== p.client_tick ||
+      p.client_tick < 0 ||
+      p.client_tick > 2147483647 ||
       !finite(p.seq) ||
       p.seq < 0 ||
       p.seq > 2147483647 ||
@@ -481,10 +579,25 @@ function handleMessage(
       invalid(d, m, "Invalid input schema");
       return;
     }
-    if (p.round_id !== s.round_id || p.seq <= m.seq) return;
+    if (
+      s.phase !== PHASE_PLAYING ||
+      p.round_id !== s.round_id ||
+      p.seq <= m.seq
+    )
+      return;
+    if (p.client_tick < tick - 30 || p.client_tick > tick + 2) return;
+    if (p.kind === "command" && m.commands.length >= 8) return;
     m.seq = p.seq;
-    if (s.phase === PHASE_PLAYING)
-      GAMES[s.game_id].input(s.game, msg.sender.userId, p, tick);
+    m.acceptedTick = tick;
+    if (s.diagnosticsEnabled) bump(m.diagnostics, "accepted", 1);
+    var queued = { payload: p, tick: tick };
+    if (p.kind === "command") m.commands.push(queued);
+    else {
+      if (m.continuousFresh && s.diagnosticsEnabled)
+        bump(m.diagnostics, "coalesced", 1);
+      m.continuous = queued;
+      m.continuousFresh = true;
+    }
   } else {
     // Staying in the current room is an idempotent membership acknowledgement,
     // not an attempt to leave/rejoin or to start a round without host authority.
@@ -493,10 +606,9 @@ function handleMessage(
     if (msg.opCode === 4) {
       if (
         !exactKeys(p, ["round_id"]) ||
-        (p.round_id !== undefined &&
-          (!finite(p.round_id) ||
-            Math.floor(p.round_id) !== p.round_id ||
-            p.round_id < 1))
+        !finite(p.round_id) ||
+        Math.floor(p.round_id) !== p.round_id ||
+        p.round_id < 1
       ) {
         invalid(d, m, "Invalid rematch schema");
         return;
@@ -516,10 +628,9 @@ function handleMessage(
       if (
         !exactKeys(p, ["ready", "round_id"]) ||
         typeof p.ready !== "boolean" ||
-        (p.round_id !== undefined &&
-          (!finite(p.round_id) ||
-            Math.floor(p.round_id) !== p.round_id ||
-            p.round_id < 1))
+        !finite(p.round_id) ||
+        Math.floor(p.round_id) !== p.round_id ||
+        p.round_id < 1
       ) {
         invalid(d, m, "Invalid ready schema");
         return;
@@ -530,10 +641,15 @@ function handleMessage(
       )
         m.ready = p.ready;
     } else if (msg.opCode === 3) {
-      if (!exactKeys(p, [])) {
+      if (
+        !exactKeys(p, ["round_id"]) ||
+        !finite(p.round_id) ||
+        Math.floor(p.round_id) !== p.round_id
+      ) {
         invalid(d, m, "Invalid start schema");
         return;
       }
+      if (p.round_id !== s.round_id) return;
       if (s.host_id !== msg.sender.userId) {
         invalid(d, m, "Only host may start");
         return;
@@ -566,6 +682,13 @@ function handleMessage(
           mm.ready = false;
           mm.staying = false;
           mm.seq = -1;
+          mm.acceptedTick = -1;
+          mm.appliedSeq = -1;
+          mm.appliedTick = -1;
+          mm.receipts = [];
+          mm.commands = [];
+          mm.continuous = null;
+          mm.continuousFresh = false;
           GAMES[s.game_id].join(s.game, id, mm.name, i);
           if (mm.selection !== null && GAMES[s.game_id].select)
             GAMES[s.game_id].select!(s.game, id, mm.selection);
@@ -595,6 +718,42 @@ function handleMessage(
       m.selection = p.selection;
     } else invalid(d, m, "Unknown opcode");
   }
+}
+// Acknowledgement is a high-water mark of first consumption, never a gap-free ledger.
+function consumeInputs(
+  s: RoomState,
+  tick: number,
+): { id: string; seq: number; kind: string }[] {
+  var module = GAMES[s.game_id];
+  var consumed: { id: string; seq: number; kind: string }[] = [];
+  memberIds(s).forEach(function (id) {
+    var m = s.members[id];
+    var apply = function (q: QueuedInput): void {
+      module.input(s.game, id, q.payload, tick);
+      consumed.push({ id: id, seq: q.payload.seq, kind: q.payload.kind });
+    };
+    if (m.continuous && tick - m.continuous.tick >= 15) {
+      if (module.inputExpired) module.inputExpired(s.game, id, tick);
+      m.continuous = null;
+      m.continuousFresh = false;
+      if (s.diagnosticsEnabled) bump(m.diagnostics, "expired", 1);
+    }
+    if (m.continuous && m.continuousFresh) {
+      apply(m.continuous);
+      m.continuousFresh = false;
+    }
+    var count = 0;
+    while (m.commands.length && count < 2) {
+      var command = m.commands.shift()!;
+      if (tick - command.payload.client_tick > 30) {
+        if (s.diagnosticsEnabled) bump(m.diagnostics, "expired", 1);
+        continue;
+      }
+      apply(command);
+      count++;
+    }
+  });
+  return consumed;
 }
 var matchLoop: nkruntime.MatchLoopFunction<RoomState> = function (
   ctx,
@@ -627,7 +786,25 @@ var matchLoop: nkruntime.MatchLoopFunction<RoomState> = function (
     d.matchLabelUpdate(roomLabel(s));
   }
   if (s.phase === PHASE_PLAYING) {
+    var consumed = consumeInputs(s, tick);
     GAMES[s.game_id].step(s.game, tick);
+    consumed.forEach(function (entry) {
+      var m = s.members[entry.id];
+      if (entry.seq > m.appliedSeq) {
+        m.appliedSeq = entry.seq;
+        m.appliedTick = tick;
+      }
+      if (s.diagnosticsEnabled) {
+        var stats = m.diagnostics;
+        wallGap(stats, "consume");
+        bump(stats, "consumed", 1);
+        stats.consume_gap_ticks =
+          stats.last_consume_tick < 0 ? 0 : tick - stats.last_consume_tick;
+        stats.last_consume_tick = tick;
+      }
+      m.receipts.push({ seq: entry.seq, tick: tick, kind: entry.kind });
+      if (m.receipts.length > 16) m.receipts.shift();
+    });
     if (
       GAMES[s.game_id].finished(s.game) ||
       (GAMES[s.game_id].duration > 0 &&

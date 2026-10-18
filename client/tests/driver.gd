@@ -20,7 +20,7 @@ func _start() -> void:
 	root.add_child(ui)
 	await process_frame
 	await process_frame
-	_write("ready.json", {"ready": true})
+	_write("ready.json", {"ready": true, "profile_path": ProjectSettings.globalize_path(root.get_node("Session").config_path())})
 
 func _process(_delta: float) -> bool:
 	if dir.is_empty() or working:
@@ -53,9 +53,13 @@ func _execute(command: Dictionary) -> void:
 		"join":
 			session_node.join_room(str(command.room), "fixture")
 		"input":
-			session_node.submit_input({"pulse": true})
+			ui.module_view.click_pulse()
+		"move":
+			ui.module_view.set_test_direction(Vector2(float(command.get("x", 0)), float(command.get("y", 0))))
 		"raw":
 			session_node.send(int(command.op), command.payload)
+		"diagnostics":
+			session_node.diagnostics.set_enabled(bool(command.get("enabled", false)))
 		"screenshot":
 			await RenderingServer.frame_post_draw
 			root.get_texture().get_image().save_png(dir.path_join(str(command.get("name", "screen")) + ".png"))
@@ -84,16 +88,28 @@ func _status(session_node: Node) -> Dictionary:
 	var score := 0
 	var ready := false
 	var connected_count := 0
+	var own: Dictionary = {}
 	for player in state.get("players", []):
 		if player.get("connected", false): connected_count += 1
 		if player.get("user_id") == session_node.user_id():
+			own = player
 			score = int(player.get("score", 0))
 			ready = bool(player.get("ready", false))
+	var presentation: Dictionary = {}
+	var timeline: Dictionary = {}
+	if is_instance_valid(ui.module_view):
+		for id in ui.module_view.poses:
+			var pose: Dictionary = ui.module_view.poses[id]
+			presentation[id] = {"x": pose.position.x, "y": pose.position.y}
+		timeline = ui.module_view.presentation_diagnostics()
 	return {"page": ui.page, "connected": session_node.connected, "busy": session_node.busy,
 		"room": session_node.match_id, "phase": state.get("phase", ""),
 		"round": int(state.get("round_id", 0)), "members": connected_count,
 		"host_self": state.get("host_id", "") == session_node.user_id() and not session_node.user_id().is_empty(),
 		"ready_self": ready, "score": score, "results": state.get("results", []).size(),
+		"user_id": session_node.user_id(), "snapshot": state, "own": own,
+		"presentation": presentation, "timeline": timeline,
+		"diagnostics": session_node.diagnostic_summary(),
 		"catalog": session_node.catalog.size(), "modules": ModuleRegistry.modules.size(),
 		"empty_state": ui.find_child("EmptyState", true, false) != null,
 		"active_module": is_instance_valid(ui.module_view), "bad_nodes": bad,

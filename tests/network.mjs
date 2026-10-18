@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { terminateOwned } from "../scripts/run-with-server.mjs";
@@ -15,6 +15,7 @@ mkdirSync(evidence, { recursive: true });
 const players = [];
 const checks = [];
 const audits = [];
+const observations = [];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 function check(name, value) {
   assert.ok(value, name);
@@ -40,6 +41,7 @@ async function launch(role) {
       `--evidence=${dir}`,
       `--name=${role}`,
       `--fixture=${fixture}`,
+      "--diagnostics=true",
     ],
     { windowsHide: true },
   );
@@ -52,6 +54,7 @@ async function launch(role) {
     await wait(50);
   }
   assert.ok(existsSync(path.join(dir, "ready.json")), "client started");
+  player.profilePath = JSON.parse(readFileSync(path.join(dir, "ready.json"))).profile_path;
   return player;
 }
 async function command(p, action = "status", extra = {}) {
@@ -98,7 +101,14 @@ function audit(label, status) {
       ),
     ),
   );
-  audits.push({ label, ...status, room: undefined });
+  audits.push({label, page: status.page, members: status.members, active_module: status.active_module, bad_nodes: status.bad_nodes, nodes: status.nodes, resources: status.resources});
+}
+function numericObservation(status) {
+  return {authority_position: status.own.position, score: status.score, snapshot_tick: status.snapshot.tick,
+    accepted_input_seq: status.own.accepted_input_seq, applied_input_seq: status.own.applied_input_seq,
+    input_receipts: status.own.input_receipts, server_diagnostics: status.snapshot.diagnostics,
+    client_diagnostics: status.diagnostics, presentation_diagnostics: status.timeline,
+    presentation_pose_count: Object.keys(status.presentation).length};
 }
 try {
   const host = await launch("Host");
@@ -154,7 +164,7 @@ try {
       (s) => s.members === 2 && s.host_self,
       "server assigns creator as host",
     );
-    await command(guest, "raw", { op: 3, payload: {} });
+    await command(guest, "raw", { op: 3, payload: { round_id: room.round } });
     await wait(350);
     check(
       "server rejects non-host start",
@@ -172,11 +182,32 @@ try {
       "host starts authoritative round",
     );
     await until(guest, (s) => s.phase === "playing", "guest enters round");
+    await command(host, "move", { x: 1, y: 0 });
+    await command(guest, "move", { x: 0, y: 1 });
+    await wait(650);
+    const movingHost = await command(host), movingGuest = await command(guest);
+    observations.push({ label: "loopback_movement", host: numericObservation(movingHost), guest: numericObservation(movingGuest) });
+    check("authoritative continuous movement for two clients", movingHost.own.position.x > 10 && movingGuest.own.position.y > 10);
+    check("both clients render two presentation poses", Object.keys(movingHost.presentation).length === 2 && Object.keys(movingGuest.presentation).length === 2);
+    check("presentation advances from buffered authority", movingHost.presentation[movingHost.user_id].x > 0 && movingGuest.presentation[movingGuest.user_id].y > 0);
+    check("private snapshot sentinel isolated on both recipients", !JSON.stringify(movingHost.snapshot).includes("PRIVATE_" + movingGuest.user_id) && !JSON.stringify(movingGuest.snapshot).includes("PRIVATE_" + movingHost.user_id));
+    await command(host, "move", { x: 0, y: 0 });
+    await command(guest, "move", { x: 0, y: 0 });
+    if (gui) await command(host, "screenshot", { name: "playing" });
     await command(host, "input");
     await until(host, (s) => s.score === 1, "server applies module input");
+    const applied = await command(host);
+    observations.push({ label: "command_applied", host: numericObservation(applied) });
+    check("applied command receipt includes actual tick", applied.own.input_receipts.some(r => r.kind === "command" && Number.isInteger(r.tick)));
+    check("applied acknowledgement never exceeds accepted", applied.own.applied_input_seq <= applied.own.accepted_input_seq);
+    check("server diagnostics record received accepted consumed and sent", applied.snapshot.diagnostics.received > 0 && applied.snapshot.diagnostics.accepted > 0 && applied.snapshot.diagnostics.consumed > 0 && applied.snapshot.diagnostics.sent > 0);
+    check("client diagnostics record actual snapshot consumption", applied.diagnostics.snapshot_consumed.count > 0);
+    check("client consumed and completed byte counters measure actual UTF8 bytes", applied.diagnostics.snapshot_consumed.window_bytes > 0 && applied.diagnostics.send_completed.window_bytes > 0);
+    await command(host, "diagnostics", {enabled: false});
+    check("disabled client diagnostics clear numeric observations", Object.keys((await command(host)).diagnostics).join() === "enabled");
     await command(host, "raw", {
       op: 1,
-      payload: { pulse: true, seq: 1, round_id: 1 },
+      payload: { pulse: true, seq: 1, round_id: 1, kind: "command", client_tick: applied.snapshot.tick },
     });
     await wait(120);
     check(
@@ -185,7 +216,7 @@ try {
     );
     await command(host, "raw", {
       op: 1,
-      payload: { pulse: true, seq: 100, round_id: 999 },
+      payload: { pulse: true, seq: 10000, round_id: 999, kind: "command", client_tick: applied.snapshot.tick },
     });
     await wait(120);
     check(
@@ -194,7 +225,7 @@ try {
     );
     await command(host, "raw", {
       op: 1,
-      payload: { pulse: true, seq: 101, round_id: 1, score: 999 },
+      payload: { pulse: true, seq: 10001, round_id: 1, kind: "command", client_tick: applied.snapshot.tick, score: 999 },
     });
     await wait(120);
     check("client score injection rejected", (await command(host)).score === 1);
@@ -202,6 +233,7 @@ try {
       host,
       (s) => s.phase === "results" && s.results === 2,
       "authoritative results",
+      22000,
     );
     audit("results", results);
     check("module released for results", !results.active_module);
@@ -223,6 +255,9 @@ try {
         !s.ready_self,
       "rematch preserves members and resets readiness",
     );
+    await command(host, "raw", {op: 2, payload: {ready: true, round_id: 1}});
+    await wait(150);
+    check("old-round control cannot ready the next round", !(await command(host)).ready_self);
     await command(host, "button", { button: "Leave" });
     await until(
       host,
@@ -271,11 +306,16 @@ try {
       if (p.child.exitCode === null) await command(p, "exit");
     } catch {}
     await terminateOwned(p.child, `test client ${p.role}`);
+    if (p.profilePath && path.basename(p.profilePath).startsWith("template-test-")) {
+      if (existsSync(p.profilePath)) unlinkSync(p.profilePath);
+    }
+    for (const name of ["command.json", "response.json"])
+      if (existsSync(path.join(p.dir, name))) unlinkSync(path.join(p.dir, name));
     writeFileSync(path.join(p.dir, "process.log"), p.output());
   }
   writeFileSync(
     path.join(evidence, "result.json"),
-    JSON.stringify({ fixture, checks, audits }, null, 2),
+    JSON.stringify({ fixture, checks, audits, observations }, null, 2),
   );
 }
 for (const p of players)

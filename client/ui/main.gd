@@ -131,7 +131,7 @@ func _show_lobby() -> void:
 	_button("Refresh", "刷新房间", Session.refresh_rooms)
 	_available.clear()
 	for entry in Session.catalog:
-		if ModuleRegistry.modules.has(str(entry.get("id", ""))):
+		if ModuleRegistry.compatible(entry):
 			_available.append(entry)
 	if _available.is_empty():
 		var empty := _label("尚未安装玩法。请按 docs/ADDING_GAME.md 同时注册客户端和服务端模块。")
@@ -188,6 +188,7 @@ func _on_snapshot(data: Dictionary) -> void:
 				_label("缺少客户端模块，请退出房间并安装匹配模块。")
 			else:
 				module_view.configure(Session.user_id())
+				module_view.set_presentation_scope(Session.presentation_scope())
 				module_view.custom_minimum_size.y = 180
 				module_view.exit_requested.connect(Session.leave_room)
 				body.add_child(module_view)

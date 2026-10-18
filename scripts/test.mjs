@@ -11,6 +11,8 @@ await checked(
   ["--headless", "--editor", "--path", "client", "--import"],
   { timeout: 120000, log: ".local/import.log" },
 );
+console.log(await checked(process.execPath, ["tests/server-protocol.mjs"], {log: ".local/server-protocol.log"}));
+console.log(await checked(process.env.GODOT, ["--headless", "--path", "client", "--script", "res://tests/snapshot_timeline.gd"], {log: ".local/snapshot-timeline.log"}));
 console.log(
   await checked(
     process.env.GODOT,
@@ -29,6 +31,8 @@ for (const fixture of [false, true]) {
     ...process.env,
     NAKAMA_DATA_DIR: `.local/database-${fixture ? "fixture" : "empty"}-${Date.now()}`,
     TEST_FIXTURE: fixture ? "1" : "0",
+    NAKAMA_LOG: `.local/server-${fixture ? "fixture" : "empty"}.log`,
+    GAME_DIAGNOSTICS: "1",
   };
   if (fixture) env.NAKAMA_RUNTIME_DIR = ".local/test-runtime";
   else delete env.NAKAMA_RUNTIME_DIR;

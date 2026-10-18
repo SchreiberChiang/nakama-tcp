@@ -94,6 +94,7 @@ if (
   process.env.NAKAMA_TELEMETRY = "0";
   const data = process.env.NAKAMA_DATA_DIR || path.join(root, ".local");
   const snapshotRate = process.env.GAME_SNAPSHOT_RATE;
+  const diagnostics = process.env.GAME_DIAGNOSTICS;
 
   // Intentionally public LOCAL dev values, never production credentials.
   const pg = new EmbeddedPostgres({
@@ -142,6 +143,8 @@ if (
       !["10", "20", "30"].includes(snapshotRate)
     )
       throw Error("GAME_SNAPSHOT_RATE must be exactly 10, 20, or 30");
+    if (diagnostics !== undefined && !["0", "1"].includes(diagnostics))
+      throw Error("GAME_DIAGNOSTICS must be exactly 0 or 1");
     await assertPortsFree();
     if (existsSync(path.join(data, "postgres", "postmaster.pid")))
       throw Error(
@@ -195,6 +198,7 @@ if (
         ...(snapshotRate === undefined
           ? []
           : ["--runtime.env", "GAME_SNAPSHOT_RATE=" + snapshotRate]),
+        ...(diagnostics === undefined ? [] : ["--runtime.env", "GAME_DIAGNOSTICS=" + diagnostics]),
       ],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
