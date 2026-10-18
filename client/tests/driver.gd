@@ -58,6 +58,10 @@ func _execute(command: Dictionary) -> void:
 			if ok: button.pressed.emit()
 		"join":
 			session_node.join_room(str(command.room), "fixture")
+		"lobby_draft":
+			ui.find_child("RoomName", true, false).text = "Refresh draft"
+			ui.find_child("Capacity", true, false).value = 6
+			ui.find_child("Modules", true, false).select(0)
 		"input":
 			ui.module_view.click_pulse()
 			last_input_seq = session_node._seq
@@ -111,6 +115,9 @@ func _status(session_node: Node) -> Dictionary:
 			score = int(player.get("score", 0))
 			ready = bool(player.get("ready", false))
 	var presentation: Dictionary = {}
+	var draft_valid := false
+	if ui.page == "lobby" and ui.find_child("RoomName", true, false) != null:
+		draft_valid = ui.find_child("RoomName", true, false).text == "Refresh draft" and ui.find_child("Capacity", true, false).value == 6 and ui._available[ui.find_child("Modules", true, false).selected].id == "fixture"
 	var timeline: Dictionary = {}
 	if is_instance_valid(ui.module_view):
 		for id in ui.module_view.poses:
@@ -118,6 +125,7 @@ func _status(session_node: Node) -> Dictionary:
 			presentation[id] = {"x": pose.position.x, "y": pose.position.y}
 		timeline = ui.module_view.presentation_diagnostics()
 	return {"page": ui.page, "connected": session_node.connected, "busy": session_node.busy,
+		"rooms_state": session_node.rooms_state, "room_count": session_node.rooms.size(), "lobby_draft_valid": draft_valid,
 		"room": session_node.match_id, "phase": state.get("phase", ""),
 		"round": int(state.get("round_id", 0)), "members": connected_count,
 		"host_self": state.get("host_id", "") == session_node.user_id() and not session_node.user_id().is_empty(),

@@ -3,6 +3,7 @@ extends Node
 signal authenticated
 signal logged_out
 signal rooms_updated(rooms: Array)
+signal rooms_state_changed
 signal joined
 signal left
 signal snapshot_received(snapshot: Dictionary)
@@ -27,6 +28,9 @@ var match_id := ""
 var game_id := ""
 var snapshot: Dictionary = {}
 var rooms: Array = []
+var rooms_state := "idle" # idle/loading/ready/error; errors retain the last successful list.
+var rooms_have_success := false
+var _rooms_request := 0
 var catalog: Array = []
 var room_flow_version := 0
 var room_capacity_supported := false
@@ -138,6 +142,7 @@ func login(display_name: String, email: String = "", password: String = "", crea
 	busy = true
 	chat.reset()
 	_generation += 1
+	_clear_rooms()
 	var generation := _generation
 	if socket != null:
 		socket.close()
@@ -232,20 +237,66 @@ func call_rpc(rpc_id: String, payload: Dictionary = {}) -> Dictionary:
 	var parsed = JSON.parse_string(result.payload)
 	return parsed if parsed is Dictionary else {}
 
+func _clear_rooms() -> void:
+	_rooms_request += 1
+	rooms = []
+	rooms_state = "idle"
+	rooms_have_success = false
+
+func _invalidate_rooms() -> void:
+	_rooms_request += 1
+	if rooms_state == "loading":
+		rooms_state = "ready" if rooms_have_success else "idle"
+
+func _rooms_current(generation: int, epoch: int, request: int) -> bool:
+	return generation == _generation and epoch == _room_epoch and request == _rooms_request and connected and session != null and client != null and match_id.is_empty() and _joining_id.is_empty()
+
+func _valid_rooms(value: Variant) -> bool:
+	if not value is Array: return false
+	for room in value:
+		if not room is Dictionary or not room.get("match_id") is String or room.match_id.is_empty() or not room.get("label") is Dictionary or not _natural(room.get("size")): return false
+		var label: Dictionary = room.label
+		if not label.get("game_id") is String or label.game_id.is_empty() or not label.get("name") is String or label.get("phase") not in ["lobby", "countdown", "playing", "results"] or not _natural(label.get("capacity")): return false
+	return true
+
 func refresh_rooms() -> void:
+	if not connected or session == null or client == null or not match_id.is_empty() or not _joining_id.is_empty(): return
+	_rooms_request += 1
+	var request := _rooms_request
 	var generation := _generation
-	var result := await call_rpc("room_list", {})
-	if generation != _generation:
+	var epoch := _room_epoch
+	rooms_state = "loading"
+	rooms_state_changed.emit()
+	# State listeners may synchronously log out, join or start a newer refresh.
+	if not _rooms_current(generation, epoch, request): return
+	var result = await client.rpc_async(session, "room_list", "{}")
+	if not _rooms_current(generation, epoch, request): return
+	var parsed: Variant = null
+	if not result.is_exception():
+		# parse_string logs malformed response fragments; keep raw bodies private.
+		var parser := JSON.new()
+		if parser.parse(result.payload) == OK:
+			parsed = parser.data
+	if not parsed is Dictionary or not _valid_rooms(parsed.get("rooms")):
+		rooms_state = "error"
+		rooms_state_changed.emit()
 		return
-	rooms = result.get("rooms", [])
-	rooms_updated.emit(rooms)
+	rooms = parsed.rooms.duplicate(true)
+	rooms_have_success = true
+	rooms_state = "ready"
+	rooms_state_changed.emit()
+	if _rooms_current(generation, epoch, request):
+		rooms_updated.emit(rooms)
 
 func create_room(room_name: String, module_id: String, options: Dictionary = {}, capacity: int = 0) -> void:
 	if busy or not match_id.is_empty():
 		return
 	busy = true
+	_invalidate_rooms()
 	var generation := _generation
 	var room_epoch := _room_epoch
+	rooms_state_changed.emit()
+	if generation != _generation or room_epoch != _room_epoch or not busy: return
 	var payload := {"name": room_name.strip_edges().substr(0, 32), "game_id": module_id}
 	if capacity > 0 and room_capacity_supported:
 		payload["capacity"] = capacity
@@ -267,6 +318,9 @@ func join_room(id: String, module_id: String, known_game: bool = true) -> void:
 	var generation := _generation
 	var room_epoch := _room_epoch
 	_joining_id = id
+	_invalidate_rooms()
+	rooms_state_changed.emit()
+	if generation != _generation or room_epoch != _room_epoch or _joining_id != id: return
 	chat.enter_room(id)
 	_host_change_seq = 0
 	snapshot = {}
@@ -304,6 +358,7 @@ func leave_room() -> void:
 		return
 	chat.suspend_room()
 	_room_epoch += 1
+	_clear_rooms()
 	var generation := _generation
 	var room_epoch := _room_epoch
 	_joining_id = ""
@@ -340,6 +395,7 @@ func logout() -> void:
 	var old_client := client
 	var old_session := session
 	_generation += 1
+	_clear_rooms()
 	_room_epoch += 1
 	_joining_id = ""
 	busy = false
@@ -502,6 +558,7 @@ func _on_presence(event: NakamaRTAPI.MatchPresenceEvent) -> void:
 		return
 	for presence in event.leaves:
 		if presence.user_id == user_id() and presence.session_id == _presence_session_id:
+			_clear_rooms()
 			match_id = ""
 			_presence_session_id = ""
 			snapshot = {}
@@ -521,6 +578,7 @@ func _on_closed() -> void:
 	if not connected:
 		return
 	_generation += 1
+	_clear_rooms()
 	_room_epoch += 1
 	_joining_id = ""
 	busy = false

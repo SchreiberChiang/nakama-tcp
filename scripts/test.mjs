@@ -1,5 +1,6 @@
 import { checked } from "./process.mjs";
 import { mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 if (!process.env.GODOT) throw Error("Set GODOT to Godot 4.7.2 executable.");
 mkdirSync(".local", { recursive: true });
 console.log(await checked(process.execPath, ["scripts/test-launcher-config.mjs"], {log: ".local/launcher-config.log"}));
@@ -13,6 +14,9 @@ await checked(
   { timeout: 120000, log: ".local/import.log" },
 );
 console.log(await checked(process.execPath, ["tests/server-protocol.mjs"], {log: ".local/server-protocol.log"}));
+const lobbyOutput = await checked(process.env.GODOT, ["--headless", "--path", "client", "--script", "res://tests/lobby_state.gd", "--", `--profile=unit-lobby-${randomUUID()}`], {log: ".local/lobby-state.log"});
+if (/PRIVATE_(?:RAW|RESPONSE|JOIN)_SENTINEL/.test(lobbyOutput)) throw Error("Lobby output leaked private response content.");
+console.log(lobbyOutput);
 console.log(await checked(process.env.GODOT, ["--headless", "--path", "client", "--script", "res://tests/snapshot_timeline.gd"], {log: ".local/snapshot-timeline.log"}));
 console.log(
   await checked(

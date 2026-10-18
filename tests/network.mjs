@@ -135,6 +135,15 @@ try {
   const lobby = await command(host);
   audit("lobby", lobby);
   if (gui) await command(host, "screenshot", { name: "lobby" });
+  if (fixture && !fault && !diagnostics) {
+    for (const player of [host, guest]) {
+      await until(player, s => s.rooms_state === "ready", `${player.role} initial room list loaded`);
+      await command(player, "lobby_draft");
+      await command(player, "button", {button: "Refresh"});
+      const refreshed = await until(player, s => s.rooms_state === "ready", `${player.role} real room-list refresh completed`);
+      check(`${player.role} real refresh preserves room draft`, refreshed.lobby_draft_valid && refreshed.room_count === 0);
+    }
+  }
   if (!fixture) {
     check(
       "empty server catalog and client registry",

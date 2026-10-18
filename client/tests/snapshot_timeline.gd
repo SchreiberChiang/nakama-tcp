@@ -12,6 +12,13 @@ class DepartureAdapter extends NakamaSocketAdapter:
 class ImmediateDepartureSocket extends NakamaSocket:
 	func leave_match_async(_match_id: String) -> NakamaAsyncResult:
 		return NakamaAsyncResult.new()
+class ImmediateLobbyClient extends NakamaClient:
+	func rpc_async(_session: NakamaSession, _id: String, _payload = null):
+		var result := NakamaAPI.ApiRpc.new()
+		result._payload = '{"rooms":[]}'
+		return result
+	func session_logout_async(_session: NakamaSession):
+		return NakamaAsyncResult.new()
 func _initialize() -> void:
 	_run.call_deferred()
 func check(value: bool, label: String) -> void:
@@ -289,6 +296,12 @@ func _run() -> void:
 	var immediate_adapter := DepartureAdapter.new()
 	root.add_child(immediate_adapter)
 	var immediate_socket := ImmediateDepartureSocket.new(immediate_adapter, "127.0.0.1", 7350, "ws", false)
+	var immediate_http := NakamaHTTPAdapter.new()
+	immediate_http.logger = NakamaLogger.new()
+	root.add_child(immediate_http)
+	transport.client = ImmediateLobbyClient.new(immediate_http, "", "http", "127.0.0.1", 7350, 8)
+	transport.session = NakamaSession.new()
+	transport.session._valid = true
 	transport.socket = immediate_socket
 	transport.connected = true
 	transport.match_id = "IMMEDIATE_TEST"
@@ -306,6 +319,7 @@ func _run() -> void:
 	transport.rooms_updated.disconnect(observe_rooms)
 	transport.logout()
 	immediate_adapter.queue_free()
+	immediate_http.queue_free()
 	await process_frame
 	ModuleRegistry.modules = saved_modules
 	diag.observe_input_ack({"accepted_input_seq": 7, "accepted_input_tick": 30, "username": "PRIVATE_NAME"})
@@ -328,5 +342,7 @@ func _run() -> void:
 	view.release()
 	check(original.has("players") and original.players.size() == 1, "release leaves input snapshot intact")
 	view.free()
+	if transport.profile.begins_with("unit-timeline-"):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(transport.config_path()))
 	print("TIMELINE_CHECKS %d FAILURES %d" % [checks, failures])
 	quit(1 if failures else 0)
