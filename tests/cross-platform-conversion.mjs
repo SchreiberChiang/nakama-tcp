@@ -34,13 +34,19 @@ if (step === 'verify' && !fs.existsSync(path.join(get('project'),'project.config
   put('tool/convert/convert.mjs', cliSource);
   const transformer = put('tool/convert/transformer.exe', 'FAKE_TRANSFORMER');
   put('tool/convert/convert.toolchain.json', JSON.stringify({transformer:'transformer.exe',transformerVersion:'1.0.35',transformerSha256:digest('FAKE_TRANSFORMER'),plugin:{name:'test'}}));
+  execFileSync('git', ['init', '-q', tool]);
+  execFileSync('git', ['-C', tool, 'config', 'core.autocrlf', 'false']);
+  execFileSync('git', ['-C', tool, 'add', '.']);
+  execFileSync('git', ['-C', tool, '-c', 'user.name=Conversion Test', '-c', 'user.email=conversion@example.invalid', 'commit', '-qm', 'fake tool fixture']);
+  const toolSha = execFileSync('git', ['-C', tool, 'rev-parse', 'HEAD'], {encoding:'utf8'}).trim();
   put('engine/godot.js', 'var Godot = {};'); put('engine/godot.wasm', Buffer.from([0,97,115,109,1,0,0,0]));
+  const symbols = put('engine/godot.js.symbols','1:fake_symbol\n');
   mkdirSync(path.join(engine, 'unrelated-directory'));
   put('platform/wechat/decoded-json.js', 'globalThis.decodedBridge = true;');
   put('platform/wechat/acceptance-lifecycle.js', 'globalThis.lifecycleBridge = true;');
   const pck = Buffer.alloc(24); pck.write('GDPC'); pck.writeUInt32LE(4,8); pck.writeUInt32LE(7,12); pck.writeUInt32LE(2,16);
   put('package/test.pck', pck);
-  const manifest = {schema:1,source_sha:'a'.repeat(40),source_dirty:true,godot_version:'4.7.2.stable.test',stage:'exported-and-audited',entry:'res://tests/cross_platform/entry.tscn',development_key:'defaultkey',pck:{file:'test.pck',bytes:pck.length,sha256:digest(pck)}};
+  const manifest = {schema:1,source_sha:'a'.repeat(40),source_dirty:true,godot_version:'4.7.2.stable.steam.ed1daf0bf',stage:'exported-and-audited',entry:'res://tests/cross_platform/entry.tscn',development_key:'defaultkey',pck:{file:'test.pck',bytes:pck.length,sha256:digest(pck)}};
   const manifestFile = put('package/manifest.json', JSON.stringify(manifest));
   const options = {root,tool,engine,packageDir};
   const appid = 'wx1234567890abcdef';
@@ -53,11 +59,23 @@ if (step === 'verify' && !fs.existsSync(path.join(get('project'),'project.config
   test(() => assert.equal(summary.verified, true));
   test(() => assert.equal(summary.timing_enabled, false));
   test(() => assert.equal(summary.pck.sha256, digest(pck)));
+  test(() => assert.equal(summary.tool.source_sha,toolSha));
+  test(() => assert.equal(summary.tool.source_dirty,false));
+  test(() => assert.equal(summary.engine.symbols_sha256,digest('1:fake_symbol\n')));
   test(() => assert.equal('protocol_version' in summary, false));
   const evidence = readFileSync(path.join(out('success'),'conversion-summary.json'),'utf8');
   test(() => assert.ok(!evidence.includes(appid) && !evidence.includes(root) && !evidence.includes('PRIVATE_RAW')));
   test(() => assert.deepEqual(json(manifestFile), manifest));
   test(() => assert.deepEqual(readFileSync(path.join(packageDir,'test.pck')),pck));
+  rmSync(symbols);
+  const appidSource = JSON.stringify({appid,irrelevant_secret:'IGNORE_THIS_FIELD'});
+  const appidFrom = put('appid-source.private.json',appidSource);
+  put('tool/local-dependency.txt','dirty dependency evidence');
+  const fromSummary = await convertCrossPlatform({...options,out:out('appid-from'),appidFrom}); count++;
+  test(() => assert.equal(fromSummary.tool.source_dirty,true));
+  test(() => assert.equal(fromSummary.engine.symbols_sha256,null));
+  test(() => assert.equal(readFileSync(appidFrom,'utf8'),appidSource));
+  test(() => assert.equal(readFileSync(path.join(out('appid-from'),'local-inputs/appid.private.json'),'utf8'),JSON.stringify({appid})));
   await assert.rejects(convertCrossPlatform({...options,out:out('success')}), /already exists/); count++;
   await assert.rejects(convertCrossPlatform({...options,out:path.join(root,'outside')}), /under .local/); count++;
   await assert.rejects(convertCrossPlatform({...options,out:out('bad-appid'),appid:'SECRET'}), /Invalid AppID/); count++;
@@ -72,15 +90,15 @@ if (step === 'verify' && !fs.existsSync(path.join(get('project'),'project.config
   await assert.rejects(convertCrossPlatform({...options,out:out('bad-transformer'),transformer:wrongTransformer}), /pin/); count++;
   // Real fake-tool subprocess failure must stop the pipeline and omit success evidence.
   put('tool/convert/convert.mjs',cliSource.replace("if (step === 'convert') {", "if (step === 'check') { console.log('PRIVATE_RAW_ERROR'); process.exit(1); }\nif (step === 'convert') {"));
-  await assert.rejects(convertCrossPlatform({...options,out:out('check-failure')}), error=>error.message==='wechat-wasm-slim check failed; conversion is not accepted'); count++;
+  await assert.rejects(convertCrossPlatform({...options,out:out('check-failure')}), error=>error.message==='wechat-wasm-slim check failed; conversion is not accepted' && error.stage==='check'); count++;
   test(() => assert.equal(readFileSync(path.join(out('check-failure'),'trace.jsonl'),'utf8').trim().split('\n').length,1));
   test(() => assert.equal(existsSync(path.join(out('check-failure'),'conversion-summary.json')),false));
   put('tool/convert/convert.mjs',cliSource.replace("if (step === 'convert') {", "if (step === 'convert') { console.log('PRIVATE_RAW_CONVERT'); process.exit(1); }\nif (step === 'convert') {"));
-  await assert.rejects(convertCrossPlatform({...options,out:out('convert-failure')}), /convert failed/); count++;
+  await assert.rejects(convertCrossPlatform({...options,out:out('convert-failure')}), error=>error.stage==='convert'); count++;
   test(() => assert.equal(readFileSync(path.join(out('convert-failure'),'trace.jsonl'),'utf8').trim().split('\n').length,2));
   test(() => assert.equal(existsSync(path.join(out('convert-failure'),'conversion-summary.json')),false));
   put('tool/convert/convert.mjs',cliSource.replace("if (step === 'verify' &&", "if (step === 'verify') { console.log('PRIVATE_RAW_VERIFY'); process.exit(1); }\nif (step === 'verify' &&"));
-  await assert.rejects(convertCrossPlatform({...options,out:out('verify-failure')}), /verify failed/); count++;
+  await assert.rejects(convertCrossPlatform({...options,out:out('verify-failure')}), error=>error.stage==='verify'); count++;
   test(() => assert.equal(existsSync(path.join(out('verify-failure'),'conversion-summary.json')),false));
   put('tool/convert/convert.mjs',cliSource);
   // Directory junctions are available on Windows without symlink privileges.
@@ -90,13 +108,15 @@ if (step === 'verify' && !fs.existsSync(path.join(get('project'),'project.config
   const linkedParent=out('linked-parent'); symlinkSync(out('real-parent'),linkedParent,process.platform==='win32'?'junction':'dir');
   await assert.rejects(convertCrossPlatform({...options,out:path.join(linkedParent,'child')}), /Symlink/); count++;
   test(() => assert.equal(existsSync(path.join(out('real-parent'),'child')),false));
-  test(() => assert.throws(()=>parseArgs(['--appid',appid,'--appid',appid]),/duplicate/));
+  test(() => assert.throws(()=>parseArgs(['--appid-from',appidFrom,'--appid-from',appidFrom]),/duplicate/));
+  test(() => assert.throws(()=>parseArgs(['--appid',appid]),/Invalid/));
   test(() => assert.throws(()=>parseArgs(['--unknown','x']),/Invalid/));
   // CLI must not print a failed filesystem path or malformed private AppID.
   let failed;
   try { execFileSync(process.execPath,[path.join(ROOT,'scripts/convert-cross-platform.mjs'),'--tool',path.join(root,'missing-PRIVATE'),'--engine',engine,'--package',packageDir,'--out',out('cli-failure'),'--appid',appid],{encoding:'utf8',stdio:'pipe'}); }
   catch(error) { failed=error; }
   test(() => assert.equal(failed.status,1));
+  test(() => assert.match(String(failed.stderr),/failed at preflight/));
   test(() => assert.ok(!String(failed.stderr).includes(root) && !String(failed.stderr).includes(appid)));
   console.log(`PASS cross-platform conversion: ${count} checks with fake external tool/PCK only; no actual conversion or WeChat runtime`);
 } finally {
