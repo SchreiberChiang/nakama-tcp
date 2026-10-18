@@ -2,6 +2,8 @@
 
 日期：2026-10-18。底座固定基线：`395999f913a0d6102ea1a604181d1f45ecd8ef65`（PR #1 merge commit）。实施分支：`codex/foundation-wechat-pc-20261018`。本文件记录当前阶段，不替换历史版本报告；尚未完成跨平台验收。
 
+最新状态：隔离腾讯云实例和TCP20443入口已建立，外部CA校验health200；源码客户端驱动云端三轮71项、实际cloud PCK三次登录/目录/WSS/注销专项通过。微信新版cloud包仍黑屏，iPhone与PC互通未验收。早期SSH、端口和未部署记录保留为历史，当前结论见文末“独立云部署与网络复验”。
+
 ## 范围和执行所有权
 
 目标为现有协议v3、fixture模块v1的微信小游戏与原生电脑客户端联机。浏览器只在必要时辅助排查，不作为发行阶段。复用原登录、大厅、房间、服务器移动与计数、结果、下一轮和代际隔离；不移植赛车，不新增预测重演、恢复原局、增量同步或传输协议。
@@ -17,7 +19,7 @@ Claude实现由负责人/只读执行方审查，Sol实现由负责人检查；�
 ## 固定组合与已核对内容
 
 - 微信工具：`SchreiberChiang/wechat-wasm-slim`，提交`4e5c2f437108c23f5e430f49636844ca8af791d3`；其实际默认分支是`feature/wechat-wasm-slim`，不是main。只复用convert，不进行trim/split或云端采集。
-- PC编辑器：Godot4.7.2 Steam版；底座声明Nakama3.41.0、SDK3.4.0（固定来源见THIRD_PARTY）、Node24。当前Node实测24.18.0。手机/后端的本轮运行证据仍待采集。
+- PC编辑器：Godot4.7.2 Steam版；底座声明Nakama3.41.0、SDK3.4.0（固定来源见THIRD_PARTY）、Node24。当前Node实测24.18.0。手机证据仍待采集；隔离后端本轮运行证据见文末。
 - 微信开发者工具：已从实际安装目录确认2.02.2609231；wechatide skill0.3.11与工具equal，登录有效。初次PATH调用失败、默认目录检查not_installed；指定实际安装目录后成功。这是路径定位问题，不是安装失败或登录过期。
 - 微信定制引擎源：`citizenll/godot` `df3cdd9bc9941a20cb5575d781cde6f937637bcb`，version.py为**4.7.2 rc**，不能称为官方stable。复用既有circuit-balanced构建，保留GUI、文字、mbedtls、WebSocket、regex；禁用2D物理等。当前fixture用普通坐标积分，不依赖2D物理引擎。没有新编译或进一步裁剪。
 - 该引擎WASM：51,779,106字节，SHA256 `4872e5dda052f1ace3776eaa8ae2ffe4fbde025a4d1706dd5555e83295e9fc79`；JS `abd947013635a9f2f1c81049c7931a57f80647185757e3f39d77d103f8f0e582`；symbols `ecffe15b2956231683f165d6776fd80b8b512d4a837973bd685799ab4ac4f4cc`。构建记录为thin-LTO、单线程、javascript_eval=yes；WASM及profile哈希与BUILD记录一致。
@@ -67,7 +69,7 @@ node scripts/convert-cross-platform.mjs --tool <tool-checkout> --engine <matched
 
 转换单测初次引入两个字面合成AppID，被源码隐私审计拒绝；已改为运行时构造纯测试值，未放宽审计。负责人重跑45项转换单测和178文件源码审计均退出0。当前组合的完整套件证明范围仍以上述8e40642代码为准，后续新增薄封装只跑受影响专项，未把模拟工具测试写成真实fixture包验收。
 
-云部署接入预检：已确认本机SSH agent有原授权身份，保持BatchMode、指定身份与严格known-host检查。原HTTP CONNECT代理路线和直连均在SSH版本交换阶段关闭；直连已建立TCP连接，但没有收到远端SSH banner，尚未进入密钥认证。故本轮未取得远端当前服务、端口、资源或证书清单，未执行部署或修改远端。历史赛车报告里的可达性、服务PID和空房状态不能替代当前检查；访问恢复后先只读盘点，再选择独立实例路径、端口与TLS入口。不能仅因已获部署授权就复用历史生产发布器覆盖原服务。
+早期云部署接入预检（历史，后续已恢复）：已确认本机SSH agent有原授权身份，保持BatchMode、指定身份与严格known-host检查。原HTTP CONNECT代理路线和直连均在SSH版本交换阶段关闭；直连已建立TCP连接，但没有收到远端SSH banner，尚未进入密钥认证。当时未取得远端当前服务、端口、资源或证书清单，未执行部署或修改远端。历史赛车报告里的可达性、服务PID和空房状态不能替代当前检查；恢复后先完成只读盘点，才选择独立实例与TLS入口，没有复用生产发布器覆盖原服务。
 
 接续顺序：审查并集成Claude客户端和Sol打包提交 → 导出/审计测试与生产包 → convert check/convert/verify → 微信模拟器及原生PC连接 → 集中iPhone步骤并完成三轮和异常生命周期 → 完整适用回归/清理 → 固定提交与证据交付。全过程不自动合并或发布。
 
@@ -91,4 +93,46 @@ SSH已恢复：负责人及独立Sol均通过指定身份、BatchMode和严格kn
 
 负责人在bfb8535代码上重新运行`node scripts/test.mjs`，Windows/Node24.18.0/Godot4.7.2 stable/Nakama3.41.0，最终退出0：协议34、请求隔离107、客户端请求16、大厅46、时间轴109、SDK55；六组真实本地后端双端10/62/58/12/13/36；profile13、外层清理1、进程超时8、冷启动1、启动器配置24均通过；HTTP模拟7、源码审计196通过。生产PCK运行审计78文件、12,145,888字节，SHA256 `893150205b119a103eccd0c2645e5294d522067fc3373e46abe225ece253431e`，空注册、无fixture/3D/音频/图片。新跨平台客户端78项单独执行通过，未冒充完整入口已包含该专项。日志为本机`.local/after-font-full-test.log`；六个新数据库保留、postmaster.pid为0；54329和7348–7351无监听，未发现属于本工作区的Nakama/Postgres/Godot残留进程。
 
-本轮截图、控制台和云盘点仅保留本机`.local`；不提交AppID、主机身份、配置或凭据。接续先建立已授权的独立云测试实例及TLS入口、验证新端口，再生成指向该实例的两个测试客户端；集中完成iPhone扫码和至少三轮生命周期。手机实际hide/show、JSBridge订阅回调、双端触摸移动计数、云网络及跨设备观感仍未验收，不以本轮界面或本地回归代替。
+上述字体阶段截图、控制台和云盘点仅保留本机`.local`；不提交AppID、主机身份、配置或凭据。当时的接续为建立独立云实例与匹配测试包；下述记录更新这部分进展。手机实际hide/show、JSBridge订阅回调、双端触摸移动计数及跨设备观感仍未验收，不以字体包界面或本地回归代替。
+
+## 独立云部署与网络复验（2026-10-18，源码测试6cd96d4）
+
+用户追加授权后，负责人在原服务器新增独立实例、OS用户、PG cluster、配置、runtime和三个专属unit；未复制原数据库或修改/重启赛车服务。PG56449、Nakama20448–20451、Caddy admin20490均loopback，仅新HTTPS/WSS TCP20443公开。新unit为static，未enable开机启动。会话/refresh、console、DB及runtime HTTP key分别随机生成，仅defaultkey作为clientdev测试key。部署fixture runtime SHA256为`b101f7a44a4c84c4bc87f617fc7986e2617a3fa64ebc175d483e0c2559b07630`；服务端启用`GAME_DIAGNOSTICS=1`。冻结生产client与server没有为这轮测试改动；6cd96d4只扩展测试驱动与证据。
+
+安装先因现有精简PG没有createdb失败，仅停止本次新unit并保留数据。负责人随后仅在新cluster用postgres standalone创建库，处理新节点名超过16字符及新Caddy的IP无SNI匹配问题，完成新实例迁移与启动。服务器本机CA验证TLS及health200通过。原服务PID、进程起始tick、exe/unit/配置hash在安装前后及网络测试后保持一致，留存于`.local/cloud-deploy/after-network-status.txt`；新三个unit均active。失败和修复日志保留，不把初次安装记成一次成功。
+
+公开端口最初外部连接失败，实际PCK smoke也失败，退出后profile清理通过。主机iptables/nft未发现20443拒绝规则，短时抓包0 captured不能单独定位阻断层。负责人在腾讯控制台核实当时8条规则缺少20443，用户确认后**仅新增TCP20443一条**，规则变为9条，应用截图为本机`.local/cloud-deploy/firewall-20443-applied.png`。随后外部curl使用正常CA校验得到health200、退出0；没有关闭TLS验证、修改全局sysctl或改旧服务端口，443仅做候选核查而未启用。
+
+新Caddy只读引用既有有效IP证书，未改原证书/权限/续期。证书元数据到期为2026-10-24 07:21:12 UTC；原续期为standalone HTTP-01（80端口），不占443。原renewal切换证书目录后，新Caddy未必自动加载；延续测试前应重新核验新端点证书，必要时只重启新proxy。停止测试用私有stage内的`manage.py stop`，顺序仅为新proxy→server→PG，保留数据；若unit已改须先核对所有权SHA，不删锁或停止原实例。
+
+### 源码双客户端与实际PCK分别验证
+
+负责人在Godot4.7.2 stable Steam下执行源码驱动`node tests/network.mjs`：
+
+| 路径 | 参数与结果 | 本机证据 |
+|---|---|---|
+| 本地隔离后端三轮 | `TEST_FIXTURE=1 TEST_ACCEPTANCE_ROUNDS=3`，未启diagnostics；75项、退出0 | `.local/network-fixture-1792327643813/result.json`、`three-round-local.log` |
+| 云端首次三轮尝试 | 未设`TEST_DIAGNOSTICS`，服务端已开诊断，因“未开诊断应无服务端diagnostics”的预期不符而失败 | `.local/three-round-cloud.log`；保留失败，不计通过 |
+| 云端修正参数三轮 | `TEST_HOST=<隔离测试IP> TEST_PORT=20443 TEST_TLS=true TEST_REMOTE_OWNED=1 TEST_FIXTURE=1 TEST_ACCEPTANCE_ROUNDS=3 TEST_DIAGNOSTICS=1 GODOT=<Steam 4.7.2>`；71项、退出0 | `.local/network-fixture-1792328008740/result.json`、`three-round-cloud-diagnostics.log` |
+
+三轮覆盖服务器移动/释放、精确seq和round的按钮计数、权威结算、重开清理，以及退出/断线后的成员清理与房主移交。该驱动运行源码client并直接驱动已有Session/UI，是两个原生Godot客户端的真实云链路证据；**不是冻结PCK的cross_platform UI点击、微信触摸或iPhone三局验收**。75与71项来自不同配置分支，不作为性能或覆盖率高低比较。
+
+网络目标/轮次数参数专项`node tests/network-target.mjs`共28项、退出0，不发网络请求。最终`node scripts/source-audit.mjs`退出0，197个文件，空生产注册、SDK pin、文档链接、隐私与生成文件排除检查通过。生产代码未在这次网络测试扩展中修改，完整本地套件及生产PCK仍引用上文固定bfb8535证据，不冒称本轮又重跑全套。真实远端三轮未额外注入迟到认证/join/leave/send回调；受控延迟旧回调的已有专项与真实手机后台行为不能相互替代。
+
+云端`result.json`的`remote_tls_movement` host单次观察示例：服务端累计received26、accepted24、consumed24、sent101，最近receive/consume间隔34ms、send间隔66ms；客户端send_attempt/completed各28、snapshot_received102、consumed101。呈现采样的snapshot_receive_age为51ms、frame callback interval约6.94ms、sample CPU为51µs。客户端此时接收/消费有界窗口各102/101样本，窗口平均间隔约49.28/49.78ms；这是该阶段单次记录，含启动/阶段切换的累计观察，不是整段稳定性统计。客户端、服务端计数作用域不同，不能据差值推断丢包；age、间隔与CPU分别在各自时钟/测点记录，没有跨端时钟相减，均不是RTT、GPU耗时或物理显示帧率。
+
+冻结cloud测试PCK来自干净`e20277f3a9f3a2d9272ab22f589df3f28e200703`：12,177,708字节，SHA256 `c06b6a474a4391d0c4a73ad6c0babf14d1d8cbc32832ab58abef7f27a2b4f250`。固定工具4e5c2f4、上述rc引擎及转换器执行转换；只读解压微信data-package后，内嵌PCK与manifest/CONVERT_REPORT/package-info哈希一致。产物为`.local/cross-platform/cloud-fixture-001`及`cloud-wechat-001`，不混用先前字体包。
+
+负责人运行`.local/pck-cloud-smoke/run.mjs --connect`退出0：实际冻结PCK同一进程内三次游客设备登录、v3 catalog、fixture_v1、WSS与logout均通过，身份只作同进程布尔一致性比较；退出确认和独立profile清理均通过。证据为`.local/pck-cloud-smoke/connect-after-firewall.log`及`connect-AQOGlG/wrapper-result.json`，先前connect-attempt失败仍保留。该脚本从实际PCK加载测试Session，但由外部GDScript专项驱动，不是点击三局、cross_platform UI全流程或跨进程重启身份持久化。现有访客本来就是设备身份免密码登录；微信身份/文件持久化尚未测，当前引擎桥`initFS([])`没有持久mount，不能承诺微信重开仍为同一游客。
+
+### 当前显示阻碍与手机入口
+
+最新cloud诊断包在6cd96d4测试基础上增加一次性阶段标记：12,178,124字节，SHA256 `3f6bf91efedcca52cfea6f2cf7d412bb0e2d6bc63022a850dcd69019df2b703c`；原始诊断修改和被拒绝的初版包另记manifest，**此包不是验收包**。微信模拟器一次刷新后六个标记全部出现：Session ready开始/结束、entry ready开始/结束、first_process、first_frame_post_draw；截图仍纯黑。帧提交回调出现只证明执行抵达该点，不能证明画布图像可见或黑屏已修复。当前排查画布显示，旧字体包的可读登录页截图不作为新cloud包通过证据。
+
+随后负责人仅在诊断副本framework中添加固定启动参数、挂载路径/长度和一次画布读回：`--main-pack /test.pck`正确，canvas/drawingBuffer均2532×1170，context未丢失、当前framebuffer为默认目标、中心RGBA为[20,25,36,255]、GL error为0；同次截图仍纯黑。这说明该采样的缓冲并非纯黑，仍不足以确认完整UI可见或定位截图/合成的具体原因。额外探针未进入冻结验收包、仓库源码或手机预览。
+
+负责人对**未加探针的cloud-wechat-001**调用`create_preview_qrcode`，退出0并生成二维码；平台返回包总计20,460,307字节（main 1,669,008、data-package 12,103,345、wasmcode 6,687,954）。只执行开发预览，没有上传体验版或发布。对应微信内嵌PCK仍为上述c06b6a47；本机二维码不提交仓库。电脑启动同一PCK的原生交互窗口，使用独立`pc-acceptance` profile；`Start-PC.cmd`依赖本机已有Steam Godot，不是自包含发行安装包。
+
+用户随后明确反馈：**iPhone已显示登录页，并进入大厅**。这是用户提供的真机显示/登录证据，未取得真机日志或录屏，不冒充负责人自动化亲跑；具体iPhone型号、iOS和微信版本仍待补充。模拟器黑截图尚未修复，不应将其直接归因于真机黑屏。现已提供iPhone＋PC三局操作步骤，正在等待同房移动/松手停止、分别点击1/2次计数、结算及再开归零的结果；真实后台/断开/退出、房主移交、旧回调及三轮完整链路仍未验收。
+
+游客入口是已有设备身份认证，预置地址/端口/TLS/clientdev key后无需账号密码；它不是微信账号授权登录。微信跨重启/清缓存/换包身份保留未测。当前不公开提交本机日志、AppID、私有配置、二维码或身份材料。公网源码驱动、实际PCK专项与上述用户真机反馈分别记录，不混写为整个阶段通过。
