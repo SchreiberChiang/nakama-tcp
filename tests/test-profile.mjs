@@ -7,8 +7,20 @@ import { checked } from "../scripts/process.mjs";
 import { withOwnedProfile, ownProfile, userDataRoot, checkedGodot } from "../scripts/test-profile.mjs";
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "template-profile-test-"));
 let checks = 0;
+let safeToClean = true;
 const digest = file => fs.existsSync(file) ? createHash("sha256").update(fs.readFileSync(file)).digest("hex") : null;
 const pass = label => { checks++; console.log("PASS", label); };
+async function rejectsAfterConfirmedExit(work, expected) {
+  let failure;
+  try { await work; }
+  catch (error) {
+    // Expected failure assertions must never consume an unconfirmed real exit:
+    // the outer owner must receive that same error and preserve the directory.
+    if (error?.exitConfirmed === false) throw error;
+    failure = error;
+  }
+  await assert.rejects(failure ? Promise.reject(failure) : Promise.resolve(), expected);
+}
 try {
   const defaults = path.join(dir, "template-default.cfg");
   const unknown = path.join(dir, "template-test-owned-unknown.cfg");
@@ -27,7 +39,7 @@ try {
         return checked(mode === "spawn-failure" ? path.join(dir, "missing-executable") : process.execPath,
           ["-e", code, file], { timeout: mode === "timeout" ? 300 : 5000 });
       });
-      if (mode === "success") await work; else await assert.rejects(work);
+      if (mode === "success") await work; else await rejectsAfterConfirmedExit(work);
       assert.equal(fs.existsSync(file), false);
       assert.equal(digest(defaults), before);
       assert.equal(digest(unknown), unknownHash);
@@ -40,13 +52,14 @@ try {
   pass("caller profile/path injection rejected; cleanup idempotent");
   let preserved;
   const unconfirmed = Object.assign(Error("direct process exit unconfirmed"), {exitConfirmed: false});
+  // Synthetic error only: no process exists, so explicit cleanup below is safe.
   await assert.rejects(withOwnedProfile(dir, async owner => {
     preserved = owner;
     fs.writeFileSync(owner.file, "still owned by a possibly live process");
     throw unconfirmed;
   }), error => error === unconfirmed);
   assert.equal(fs.readFileSync(preserved.file, "utf8"), "still owned by a possibly live process");
-  preserved.cleanup(); // The simulated writer is now known to have stopped.
+  preserved.cleanup(); // There was no real writer in this synthetic fixture.
   pass("unconfirmed direct exit preserves profile until its owner confirms cleanup");
   const childScript = path.join(dir, "cooperative.mjs");
   const beforeDefault = digest(defaults);
@@ -75,14 +88,14 @@ const events=JSON.parse(fs.readFileSync(process.argv[3])); events.push('server-s
 }]);
 process.on('message',async m=>{if(m?.type==='test-stop'){await stop();process.disconnect();}});
 child=spawn(process.execPath,[${JSON.stringify(networkScript)},process.argv[2],process.argv[3]],{stdio:['ignore','ignore','ignore','ipc']});`);
-  await assert.rejects(checked(process.execPath, [childScript, dir, events], {timeout: 1500, cooperativeStop: true, cleanupGrace: 5000}), /timeout/);
+  await rejectsAfterConfirmedExit(checked(process.execPath, [childScript, dir, events], {timeout: 1500, cooperativeStop: true, cleanupGrace: 5000}), /timeout/);
   assert.deepEqual(JSON.parse(fs.readFileSync(events)), ["client-start", "client-exit", "profile-cleaned", "server-stop"]);
   assert.equal(fs.readdirSync(dir).filter(x => /^template-test-owned-/.test(x)).join(), path.basename(unknown));
   assert.equal(digest(defaults), beforeDefault);
   pass("cooperative outer timeout waits for client/profile cleanup before server stop (no backend)");
   const stubborn = path.join(dir, "stubborn.mjs");
   fs.writeFileSync(stubborn, "process.on('message',()=>{}); setInterval(()=>{},1000);");
-  await assert.rejects(checked(process.execPath, [stubborn], {timeout: 200, cooperativeStop: true, cleanupGrace: 200}), /descendant cleanup unverified/);
+  await rejectsAfterConfirmedExit(checked(process.execPath, [stubborn], {timeout: 200, cooperativeStop: true, cleanupGrace: 200}), /descendant cleanup unverified/);
   pass("unresponsive cooperative timeout reports cleanup unverified");
   if (process.env.GODOT) {
     const root = await userDataRoot();
@@ -94,8 +107,11 @@ child=spawn(process.execPath,[${JSON.stringify(networkScript)},process.argv[2],p
     pass("real Godot Session uses exact owned path; existing default hash/absence unchanged");
   }
   console.log(`PROFILE_RUNNER_CHECKS ${checks} FAILURES 0`);
+} catch (error) {
+  safeToClean = error?.exitConfirmed !== false;
+  throw error;
 } finally {
   const relative = path.relative(path.resolve(os.tmpdir()), path.resolve(dir));
   assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative) && path.basename(dir).startsWith("template-profile-test-"));
-  fs.rmSync(dir, {recursive: true, force: true});
+  if (safeToClean) fs.rmSync(dir, {recursive: true, force: true});
 }
