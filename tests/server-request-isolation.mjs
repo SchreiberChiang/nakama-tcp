@@ -117,6 +117,90 @@ test("fixture missing or null state direction is ordinary boolean rejection",()=
     assert.equal(h.s.members.alice.commandResults.length,0);
   }
 });
+
+const rejectionPackets=h=>h.packets.filter(p=>p.op===11&&JSON.parse(p.data).message==="Request rejected");
+test("39 score injections emit one rejection without strikes or command outcomes",()=>{
+  const h=harness(),old=h.module.validateInput;let calls=0;
+  h.module.validateInput=p=>{calls++;return old(p);};
+  alive(h,h.loop(10,Array.from({length:39},(_,seq)=>input(seq,{score:999}))));
+  unchangedInput(h);assert.equal(calls,39);assert.equal(rejectionPackets(h).length,1);
+  assert.equal(h.s.members.alice.commandResults.length,0);
+  assert.equal(h.s.members.alice.diagnostics.module_request_error,0);assert.equal(h.logs.length,0);
+  assert.ok(h.loop(11,[input(0,{},users[0],11)]));
+  assert.equal(h.s.game.players.alice.score,1);assert.equal(outcome(h,0).status,"applied");
+});
+test("business rejection first tick and exact 30 tick boundary only limit prompts",()=>{
+  const h=harness();let calls=0;h.module.validateInput=()=>{calls++;return false;};
+  for(const [tick,expected] of [[0,1],[29,1],[30,2],[59,2],[60,3]]) {
+    assert.ok(h.loop(tick,[input(0,{},users[0],tick)]));
+    assert.equal(rejectionPackets(h).length,expected);unchangedInput(h);
+  }
+  assert.equal(calls,5);assert.equal(h.s.members.alice.commandResults.length,0);
+});
+test("business rejection prompt budgets are isolated by member",()=>{
+  const h=harness();h.module.validateInput=()=>false;
+  alive(h,h.loop(10,[input(),input(0,{},users[1]),input(1),input(1,{},users[1])]));
+  assert.deepEqual(rejectionPackets(h).map(p=>p.recipients[0].userId),["alice","bob"]);
+  assert.equal(h.s.members.alice.strikes,0);assert.equal(h.s.members.bob.strikes,0);
+});
+for(const first of ["input","selection"])test(`${first} and other business rejection share a prompt budget`,()=>{
+  const h=harness(first==="input"?"playing":"lobby");let inputs=0,selections=0;
+  h.module.validateInput=()=>{inputs++;return false;};
+  h.module.validateSelection=()=>{selections++;return false;};
+  const send=(kind,tick)=>{h.s.phase=kind==="input"?"playing":"lobby";assert.ok(h.loop(tick,[kind==="input"?input(0,{},users[0],tick):selection()]));};
+  const other=first==="input"?"selection":"input";
+  send(first,10);send(other,39);assert.equal(rejectionPackets(h).length,1);
+  send(other,40);assert.equal(rejectionPackets(h).length,2);
+  assert.equal(inputs+selections,3);unchangedInput(h);
+  assert.equal(h.s.members.alice.selection,null);assert.equal(h.s.members.alice.commandResults.length,0);
+});
+for(const first of ["business","module"])test(`${first} rejection does not spend other failure prompt budget`,()=>{
+  const h=harness();h.module.validateInput=p=>{if(p.seq===1)throw Error(secret);return false;};
+  assert.ok(h.loop(10,(first==="business"?[0,1,2,3]:[1,0,3,2]).map(seq=>input(seq))));
+  assert.equal(rejectionPackets(h).length,1);
+  assert.equal(h.packets.filter(p=>p.op===11&&JSON.parse(p.data).error==="Module request failure").length,1);
+  assert.equal(h.logs.length,1);unchangedInput(h);
+  assert.equal(outcome(h,1).status,"rejected_module_error");assert.equal(h.s.members.alice.commandResults.length,1);
+});
+test("suppressed business prompt preserves queued command and continuous control",()=>{
+  const h=harness(),old=h.module.validateInput;
+  h.module.validateInput=p=>p.score===undefined?old(p):false;
+  assert.ok(h.loop(10,[input(0),input(1),input(2),input(3,{kind:"state",pulse:undefined,direction:{x:1,y:0}}),input(4,{score:999}),input(5,{score:999})]));
+  const m=h.s.members.alice;
+  assert.equal(rejectionPackets(h).length,1);assert.equal(m.seq,3);assert.equal(m.acceptedTick,10);
+  assert.deepEqual(plain(m.commands.map(q=>q.payload.seq)),[2]);assert.equal(m.continuous.payload.seq,3);
+  assert.equal(outcome(h,4),undefined);assert.equal(outcome(h,5),undefined);assert.equal(m.diagnostics.accepted,4);
+  assert.ok(h.loop(11));assert.equal(outcome(h,2).status,"applied");assert.equal(h.s.game.players.alice.score,3);
+});
+
+for(const op of [1,5])for(const key of ["__proto__","constructor","prototype"])for(const shape of ["root","nested","array"])test(`client op${op} ${shape} ${key} is a core violation before module calls`,()=>{
+  const h=harness(op===1?"playing":"lobby"),m=h.s.members.alice;let calls=0;
+  h.module.validateInput=h.module.validateSelection=h.module.select=()=>{calls++;throw Error(secret);};
+  const dangerous=JSON.parse(`{"${key}":true}`);
+  const value=shape==="root"?dangerous:shape==="nested"?{nested:dangerous}:{nested:[{deep:dangerous}]};
+  const msg=op===1?input(0,value):selection(value);
+  alive(h,h.loop(10,[msg]));assert.equal(calls,0);assert.equal(m.strikes,1);
+  assert.equal(m.seq,-1);assert.equal(m.acceptedTick,-1);assert.equal(m.appliedSeq,-1);
+  assert.equal(m.commands.length,0);assert.equal(m.continuous,null);assert.equal(m.receipts.length,0);
+  assert.equal(m.commandResults.length,0);assert.equal(m.diagnostics.accepted,0);
+  assert.equal(m.selection,null);assert.equal(m.diagnostics.module_request_error,0);
+  assert.equal(m.diagnostics.request_clone_error,0);assert.equal(h.logs.length,0);
+  assert.ok(h.packets.some(p=>p.op===11&&JSON.parse(p.data).error===(op===1?"Invalid input schema":"Invalid player selection")));
+});
+for(const op of [1,5])test(`client op${op} reserved keys retain strike kick and healthy peer progress`,()=>{
+  const h=harness(op===1?"playing":"lobby"),m=h.s.members.alice;let calls=0;
+  const callback=op===1?"validateInput":"validateSelection",old=h.module[callback];
+  h.module[callback]=p=>{calls++;return old(p);};
+  const dangerous=JSON.parse('{"nested":[{"constructor":true}]}');
+  const bad=()=>op===1?input(0,dangerous):selection(dangerous);
+  assert.ok(h.loop(10,Array.from({length:7},bad)));assert.equal(m.strikes,7);assert.equal(h.kicks.length,0);
+  assert.ok(h.loop(11,[bad(),op===1?input(0,{},users[1],11):selection({colour:"blue"},users[1])]));
+  assert.equal(m.strikes,8);assert.deepEqual(h.kicks.map(p=>p.userId),["alice"]);assert.equal(calls,1);
+  assert.equal(m.commandResults.length,0);assert.equal(m.diagnostics.accepted,0);assert.equal(m.diagnostics.module_request_error,0);
+  assert.equal(h.logs.length,0);
+  if(op===1)assert.equal(h.s.game.players.bob.score,1);
+  else assert.deepEqual(plain(h.s.members.bob.selection),{colour:"blue"});
+});
 for(const changed of [false,true])test(`select ${changed} commits candidate and ${changed?"clears":"retains"} ready`,()=>{
   const h=harness("lobby"),m=h.s.members.alice;m.ready=true;const game=h.s.game;
   h.module.select=(candidate,id,p)=>{candidate.players[id].choice=p;return changed;};

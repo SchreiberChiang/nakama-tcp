@@ -21,6 +21,7 @@ interface Member extends ChatMember {
   strikes: number;
   selection: any;
   requestErrorTick?: number;
+  requestRejectedTick?: number;
   requestLogTicks?: { [category: string]: number };
 }
 interface RoomState extends ChatRoomState {
@@ -625,8 +626,18 @@ function requestFailure(
     d.broadcastMessage(11, JSON.stringify({ error: "Module request failure", message: "Module request failure" }), [m.presence]);
   }
 }
-function requestRejected(d: nkruntime.MatchDispatcher, m: Member, reason: string): void {
+function requestRejected(d: nkruntime.MatchDispatcher, m: Member, tick: number, reason: string): void {
+  // Business rejections share a member budget, separate from module failures.
+  if (m.requestRejectedTick !== undefined && tick - m.requestRejectedTick < TICK_RATE) return;
+  m.requestRejectedTick = tick;
   d.broadcastMessage(11, JSON.stringify({ error: reason, message: "Request rejected" }), [m.presence]);
+}
+function hasReservedRequestKey(value: any): boolean {
+  if (!value || typeof value !== "object") return false;
+  return Object.keys(value).some(function (key) {
+    return key === "__proto__" || key === "constructor" || key === "prototype" ||
+      hasReservedRequestKey(value[key]);
+  });
 }
 function applySelection(
   d: nkruntime.MatchDispatcher, s: RoomState, m: Member, id: string,
@@ -643,7 +654,7 @@ function applySelection(
   try { valid = game.validateSelection(validation); }
   catch (e) { requestFailure(d, s, m, tick, "validate_selection_error", logger); return false; }
   if (typeof valid !== "boolean") { requestFailure(d, s, m, tick, "validate_selection_error", logger); return false; }
-  if (!valid) { requestRejected(d, m, "Invalid player selection"); return false; }
+  if (!valid) { requestRejected(d, m, tick, "Invalid player selection"); return false; }
   try { candidate = cloneRequestData(s.game); }
   catch (e) { requestFailure(d, s, m, tick, "request_clone_error", logger); return false; }
   var resetReady: any;
@@ -694,6 +705,12 @@ function handleMessage(
     p = parseObject(nk.binaryToString(msg.data));
   } catch (e) {
     invalid(d, m, "Malformed JSON");
+    return;
+  }
+  // Parsed client JSON is bounded to 256 bytes. Reject pollution keys as core
+  // violations before module copies/callbacks; internal clone faults stay separate.
+  if ((msg.opCode === 1 || msg.opCode === 5) && hasReservedRequestKey(p)) {
+    invalid(d, m, msg.opCode === 1 ? "Invalid input schema" : "Invalid player selection");
     return;
   }
   if (msg.opCode === 1) {
@@ -748,7 +765,7 @@ function handleMessage(
       requestFailure(d, s, m, tick, "validate_input_error", logger);
       return;
     }
-    if (!valid) { requestRejected(d, m, "Invalid input schema"); return; }
+    if (!valid) { requestRejected(d, m, tick, "Invalid input schema"); return; }
     m.seq = p.seq;
     m.acceptedTick = tick;
     if (s.diagnosticsEnabled) bump(m.diagnostics, "accepted", 1);
