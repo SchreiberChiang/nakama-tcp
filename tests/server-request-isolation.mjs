@@ -220,6 +220,71 @@ for(const callback of ["input","step"])test(`authoritative ${callback} remains f
   assert.equal(h.packets.filter(p=>p.op===10).length,0);
   assert.ok(h.packets.some(p=>p.op===11&&JSON.parse(p.data).error==="Module failure"));sanitized(h);
 });
+for(const fault of ["cycle","special","oversize"])test(`invalid select candidate output ${fault} cannot commit`,()=>{
+  const h=harness("lobby"),game=h.s.game,m=h.s.members.alice,before=JSON.stringify(game);
+  m.ready=true;let calls=0;
+  h.module.select=(candidate,id,p)=>{calls++;candidate.players[id].score=999;
+    if(fault==="cycle")candidate.bad=candidate;
+    if(fault==="special")candidate.bad=vm.runInContext("new Date()",h.c);
+    if(fault==="oversize")candidate.bad="x".repeat(65537);
+    return true;};
+  alive(h,h.loop(10,[selection()]));assert.equal(calls,1);assert.equal(h.s.game,game);
+  assert.equal(JSON.stringify(game),before);assert.equal(m.selection,null);assert.equal(m.ready,true);
+  assert.equal(m.diagnostics.request_clone_error,1);
+});
+test("retained successful callback references cannot mutate committed game or stored selection",()=>{
+  const h=harness("lobby");let candidateRef,requestRef,validatorRef;
+  h.module.validateSelection=p=>{validatorRef=p;return true;};
+  h.module.select=(candidate,id,p)=>{candidateRef=candidate;requestRef=p;candidate.players[id].choice=p;return true;};
+  alive(h,h.loop(10,[selection({nested:{colour:"red"}})]));
+  const before=JSON.stringify(h.s.game),stored=JSON.stringify(h.s.members.alice.selection);
+  candidateRef.players.alice.score=999;candidateRef.players.alice.choice.nested.colour="candidate";
+  requestRef.nested.colour="request";validatorRef.nested.colour="validator";
+  assert.equal(JSON.stringify(h.s.game),before);assert.equal(JSON.stringify(h.s.members.alice.selection),stored);
+  h.packets.length=0;alive(h,h.loop(11));assert.equal(JSON.stringify(h.s.game),before);
+});
+for(const offender of ["alice","bob"])for(const mode of ["throw","false","illegal"])test(`rematch validation ${mode} isolates ${offender} and targets only offender`,()=>{
+  const other=offender==="alice"?"bob":"alice",h=harness("results");
+  h.s.members[offender].selection=vm.runInContext('({colour:"bad"})',h.c);
+  h.s.members[other].selection=vm.runInContext('({colour:"blue"})',h.c);
+  const selected=[];
+  h.module.validateSelection=p=>{if(p.colour!=="bad")return true;if(mode==="throw")throw Error(secret);return mode==="false"?false:"true";};
+  h.module.select=(g,id,p)=>{selected.push(id);g.players[id].choice=p;return true;};
+  alive(h,h.loop(10,[message(4,{round_id:1})]));
+  assert.equal(h.s.round_id,2);assert.equal(h.s.phase,"lobby");assert.deepEqual(selected,[other]);
+  assert.equal(h.s.members[offender].selection,null);assert.equal(h.s.game.players[offender].choice,undefined);
+  assert.deepEqual(plain(h.s.game.players[other].choice),{colour:"blue"});
+  const errors=h.packets.filter(p=>p.op===11);assert.equal(errors.length,1);
+  assert.deepEqual(plain(errors[0].recipients.map(p=>p.userId)),[offender]);
+  assert.equal(JSON.parse(errors[0].data).error,mode==="false"?"Invalid player selection":"Module request failure");sanitized(h);
+});
+for(const valid of ["nullprototype","densearrays","depth32","bytes65536"])test(`valid candidate ${valid} commits at plain-data boundary`,()=>{
+  const h=harness("lobby");let calls=0;
+  if(valid==="nullprototype")h.s.game.extra=vm.runInContext('Object.assign(Object.create(null),{yes:true,no:null,n:2.5,text:"中文"})',h.c);
+  if(valid==="densearrays")h.s.game.extra=vm.runInContext('[null,true,false,12,"text",{nested:[1,2]}]',h.c);
+  if(valid==="depth32")h.s.game.extra=vm.runInContext('(()=>{var x="leaf";for(var i=0;i<31;i++)x={next:x};return x;})()',h.c);
+  if(valid==="bytes65536"){h.s.game.pad="";h.s.game.pad="x".repeat(65536-Buffer.byteLength(JSON.stringify(h.s.game)));assert.equal(Buffer.byteLength(JSON.stringify(h.s.game)),65536);}
+  const before=JSON.stringify(h.s.game),old=h.s.game;
+  h.module.select=()=>{calls++;return false;};alive(h,h.loop(10,[selection()]));
+  assert.equal(calls,1);assert.notEqual(h.s.game,old);assert.equal(JSON.stringify(h.s.game),before);
+  assert.deepEqual(plain(h.s.members.alice.selection),{colour:"red"});assert.equal(h.s.members.alice.diagnostics.module_request_error,0);
+});
+for(const fault of ["symbol","sparse","nonenumerable","sharedalias","__proto__","constructor","prototype","getter"])test(`clone rejects ${fault} without invoking getter or select`,()=>{
+  const h=harness("lobby"),game=h.s.game;let calls=0;
+  h.c.getterSideEffects=0;
+  game.bad=vm.runInContext(`(()=>{var x={};
+    switch(${JSON.stringify(fault)}) {
+      case "symbol":x[Symbol("hidden")]=1;break;
+      case "sparse":return new Array(2);
+      case "nonenumerable":Object.defineProperty(x,"hidden",{value:1});break;
+      case "sharedalias":var shared={value:1};return {a:shared,b:shared};
+      case "getter":Object.defineProperty(x,"hidden",{enumerable:true,get:function(){getterSideEffects++;return 1;}});break;
+      default:Object.defineProperty(x,${JSON.stringify(fault)},{value:1,enumerable:true});
+    }return x;})()`,h.c);
+  h.module.select=()=>{calls++;return true;};alive(h,h.loop(10,[selection()]));
+  assert.equal(calls,0);assert.equal(h.c.getterSideEffects,0);assert.equal(h.s.game,game);
+  assert.equal(h.s.members.alice.selection,null);assert.equal(h.s.members.alice.diagnostics.request_clone_error,1);
+});
 console.log(`${passes} request isolation regressions passed; ${failures} failed`);
 if(!passes&&!failures)throw Error("No tests selected");
 if(failures)process.exitCode=1;
