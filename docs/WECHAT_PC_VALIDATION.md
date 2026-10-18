@@ -1,8 +1,8 @@
-# 微信与原生电脑双客户端验收（进行中）
+# 微信与原生电脑双客户端验收
 
-日期：2026-10-18。底座固定基线：`395999f913a0d6102ea1a604181d1f45ecd8ef65`（PR #1 merge commit）。实施分支：`codex/foundation-wechat-pc-20261018`。本文件记录当前阶段，不替换历史版本报告；尚未完成跨平台验收。
+日期：2026-10-18。底座固定基线：`395999f913a0d6102ea1a604181d1f45ecd8ef65`（PR #1 merge commit）。实施分支：`codex/foundation-wechat-pc-20261018`。本文件保留过程记录；原冻结包已获用户四组真机人工验收确认，新提示包尚未做手机视觉复验，二者不能混用结论。
 
-最新状态：隔离腾讯云实例和TCP20443入口已建立，外部CA校验health200；源码客户端驱动云端三轮71项、实际cloud PCK三次登录/目录/WSS/注销专项通过。微信新版cloud包仍黑屏，iPhone与PC互通未验收。早期SSH、端口和未部署记录保留为历史，当前结论见文末“独立云部署与网络复验”。
+最新状态：隔离腾讯云实例和TCP20443入口已建立；负责人已运行源码双客户端云三轮71项及冻结PCK登录/WSS专项。用户在iPhone 16 Pro、iOS 18.3.1、微信8.0.75上确认三局、后台重入三次、房主移交三次及空房清理全部符合预期，绑定旧冻结PCK c06b6a47。Claude新增只读阶段提示已审查集成，修复初始后台提示后专项95项通过，新包15e371e4已导出/转换但没有重新做手机验收。模拟器黑截图原因仍未定位。早期“未验收”等文字属于当时状态，最终范围见文末“四组真机人工验收收尾”和“Claude阶段提示集成与复验”。
 
 ## 范围和执行所有权
 
@@ -19,7 +19,7 @@ Claude实现由负责人/只读执行方审查，Sol实现由负责人检查；�
 ## 固定组合与已核对内容
 
 - 微信工具：`SchreiberChiang/wechat-wasm-slim`，提交`4e5c2f437108c23f5e430f49636844ca8af791d3`；其实际默认分支是`feature/wechat-wasm-slim`，不是main。只复用convert，不进行trim/split或云端采集。
-- PC编辑器：Godot4.7.2 Steam版；底座声明Nakama3.41.0、SDK3.4.0（固定来源见THIRD_PARTY）、Node24。当前Node实测24.18.0。手机证据仍待采集；隔离后端本轮运行证据见文末。
+- PC编辑器：Godot4.7.2 Steam版；底座声明Nakama3.41.0、SDK3.4.0（固定来源见THIRD_PARTY）、Node24。当前Node实测24.18.0。手机用户报告及隔离后端运行证据见文末，各自固定版本和来源分开记录。
 - 微信开发者工具：已从实际安装目录确认2.02.2609231；wechatide skill0.3.11与工具equal，登录有效。初次PATH调用失败、默认目录检查not_installed；指定实际安装目录后成功。这是路径定位问题，不是安装失败或登录过期。
 - 微信定制引擎源：`citizenll/godot` `df3cdd9bc9941a20cb5575d781cde6f937637bcb`，version.py为**4.7.2 rc**，不能称为官方stable。复用既有circuit-balanced构建，保留GUI、文字、mbedtls、WebSocket、regex；禁用2D物理等。当前fixture用普通坐标积分，不依赖2D物理引擎。没有新编译或进一步裁剪。
 - 该引擎WASM：51,779,106字节，SHA256 `4872e5dda052f1ace3776eaa8ae2ffe4fbde025a4d1706dd5555e83295e9fc79`；JS `abd947013635a9f2f1c81049c7931a57f80647185757e3f39d77d103f8f0e582`；symbols `ecffe15b2956231683f165d6776fd80b8b512d4a837973bd685799ab4ac4f4cc`。构建记录为thin-LTO、单线程、javascript_eval=yes；WASM及profile哈希与BUILD记录一致。
