@@ -5,9 +5,13 @@ extends Control
 const VIEW_SCRIPT := "res://tests/cross_platform/cross_platform_view.gd"
 const LIFECYCLE_SCRIPT := preload("res://tests/cross_platform/lifecycle.gd")
 const PANEL_SCRIPT := preload("res://tests/cross_platform/diagnostics_panel.gd")
+const GUIDE_SCRIPT := preload("res://tests/cross_platform/acceptance_guide.gd")
+const GUIDE_TOP := 28.0
+const HEADER_GAP := 6.0
 var main: Control
 var lifecycle: Node
 var diagnostics_panel: PanelContainer
+var guide: Label
 ## Fixed flag: another factory already owned "fixture" in this process.
 var registration_conflict := false
 var _owns_registration := false
@@ -36,13 +40,38 @@ func _ready() -> void:
 	lifecycle.name = "Lifecycle"
 	add_child(lifecycle)
 	lifecycle.setup(session, LIFECYCLE_SCRIPT.engine_bridge(), current_view)
+	_build_guide(session)
 	_build_overlay(session)
+	_layout_header()
 
 ## Static so the factory never captures this node. The entry removes its own
 ## registration on exit: a lambda left in the static registry until engine
 ## shutdown outlives its script and crashes the process on quit.
 static func register_fixture() -> void:
 	ModuleRegistry.register_module("fixture", func(): return load(VIEW_SCRIPT).new(), {"module_version": 1})
+
+## Read-only stage guide in the header strip under the marker. Main starts below
+## its actual wrapped height, so the guide never covers Main's own controls.
+func _build_guide(session: Node) -> void:
+	guide = GUIDE_SCRIPT.new()
+	guide.theme = main.theme
+	guide.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	guide.offset_left = 24
+	guide.offset_right = -24
+	guide.offset_top = GUIDE_TOP
+	add_child(guide)
+	guide.setup(session, main, lifecycle)
+	guide.minimum_size_changed.connect(_layout_header)
+	guide.resized.connect(_layout_header)
+
+func _layout_header() -> void:
+	if not is_instance_valid(guide) or not is_instance_valid(main):
+		return
+	var guide_height := guide.get_combined_minimum_size().y
+	guide.offset_bottom = GUIDE_TOP + guide_height
+	main.offset_top = GUIDE_TOP + guide_height + HEADER_GAP
+	if is_instance_valid(diagnostics_panel):
+		diagnostics_panel.offset_top = main.offset_top
 
 func current_view() -> Variant:
 	return main.module_view if is_instance_valid(main) and is_instance_valid(main.module_view) else null

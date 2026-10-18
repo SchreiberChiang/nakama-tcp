@@ -7,6 +7,7 @@ const PAD := preload("res://tests/cross_platform/direction_pad.gd")
 const LIFECYCLE := preload("res://tests/cross_platform/lifecycle.gd")
 const BRIDGE := preload("res://tests/cross_platform/js_lifecycle_bridge.gd")
 const PANEL := preload("res://tests/cross_platform/diagnostics_panel.gd")
+const GUIDE := preload("res://tests/cross_platform/acceptance_guide.gd")
 const SETTINGS := ["enabled", "host", "port", "tls", "allow_insecure_lan", "diagnostics"]
 var checks := 0
 var failures := 0
@@ -76,7 +77,10 @@ func _run() -> void:
 	_test_bridge_adapter()
 	_test_connection_whitelist()
 	_test_diagnostics()
+	_test_guide_states()
+	await _test_guide_wiring()
 	await _test_entry()
+	await _test_guide_layout()
 	print("CROSS_PLATFORM_CHECKS %d FAILURES %d" % [checks, failures])
 	quit(1 if failures else 0)
 
@@ -327,3 +331,167 @@ func _test_entry() -> void:
 	entry.queue_free()
 	await process_frame
 	check(not ModuleRegistry.modules.has("fixture"), "entry removes its process-local fixture registration on exit")
+
+## Spy Session for guide wiring: real signals and logout/_on_closed, injectable user id.
+func guide_spy_session() -> Node:
+	var source := GDScript.new()
+	source.source_code = "extends \"%s\"\nvar uid := \"\"\nvar logins := 0\nfunc user_id() -> String:\n\treturn uid\nfunc login(a: String, b: String = \"\", c: String = \"\", d: bool = false) -> void:\n\tlogins += 1\n" % TEST_SESSION
+	source.reload()
+	return source.new()
+
+func _test_guide_states() -> void:
+	var cases := [
+		[{}, "login"],
+		[{"busy": true}, "connecting"],
+		[{"logout_reason": "background"}, "after_background"],
+		[{"logout_reason": "disconnect"}, "after_disconnect"],
+		[{"background": true, "connected": true, "in_room": true, "phase": "playing", "round": 2}, "background"],
+		[{"connected": true}, "lobby"],
+		[{"connected": true, "busy": true}, "entering"],
+		[{"connected": true, "room_failed": true}, "room_failed"],
+		[{"connected": true, "in_room": true, "phase": "lobby", "round": 1}, "ready_needed"],
+		[{"connected": true, "in_room": true, "phase": "lobby", "round": 1, "self_ready": true}, "waiting_peer"],
+		[{"connected": true, "in_room": true, "phase": "lobby", "round": 1, "self_ready": true, "all_ready": true, "is_host": true}, "host_start"],
+		[{"connected": true, "in_room": true, "phase": "lobby", "round": 1, "self_ready": true, "all_ready": true}, "waiting_host"],
+		[{"connected": true, "in_room": true, "phase": "countdown", "round": 1}, "countdown"],
+		[{"connected": true, "in_room": true, "phase": "playing", "round": 1}, "playing"],
+		[{"connected": true, "in_room": true, "phase": "results", "round": 1}, "results"],
+	]
+	var mismatches: Array = []
+	for item in cases:
+		if GUIDE.describe(item[0]) != item[1]:
+			mismatches.append(item[1])
+	check(mismatches.is_empty(), "guide stage keys follow connection, room, busy and authoritative phase")
+	var stale := [
+		GUIDE.describe({"connected": true, "in_room": false, "phase": "playing", "round": 3}),
+		GUIDE.describe({"connected": false, "in_room": true, "phase": "results", "round": 3}),
+		GUIDE.describe({"connected": true, "in_room": true}),
+		GUIDE.describe({"connected": true, "in_room": true, "phase": "PRIVATE_PHASE", "round": 3}),
+		GUIDE.describe({"connected": true, "in_room": true, "phase": "results", "round": 0}),
+	]
+	check(stale == ["lobby", "login", "syncing", "syncing", "syncing"] and not GUIDE.text_for("syncing", 3).contains("第") and not GUIDE.text_for("lobby", 3).contains("第"), "without a valid current snapshot the guide never reuses an old room or round")
+	check(GUIDE.describe({"logout_reason": "disconnect", "phase": "results", "round": 2}) == "after_disconnect" and GUIDE.text_for("after_disconnect", 0).contains("不是正常结算") and GUIDE.text_for("room_failed", 0).contains("不是正常结算") and GUIDE.text_for("results", 2).contains("不是掉线"), "abnormal disconnect and room failure are never labeled as normal results")
+	var login := GUIDE.text_for("login", 0)
+	var playing := GUIDE.text_for("playing", 2)
+	var results := GUIDE.text_for("results", 2)
+	var returned := GUIDE.text_for("after_background", 0)
+	check(login.contains("设备游客") and login.contains("无需账号密码") and login.contains("连接信息已预置") and playing.contains("第2局") and playing.contains("约12秒") and playing.contains("服务端结算") and results.contains("房主开启下一局") and results.contains("重新准备") and returned.contains("重新登录") and returned.contains("不会恢复"), "guide carries the required login, round length, results and background wording")
+
+func _test_guide_wiring() -> void:
+	var spy := guide_spy_session()
+	spy.uid = "PRIVATE_SELF"
+	var lifecycle: Node = LIFECYCLE.new()
+	root.add_child(lifecycle)
+	lifecycle.setup(spy, null, Callable())
+	var signals := [spy.authenticated, spy.logged_out, spy.joined, spy.left, spy.snapshot_received, spy.connection_changed, spy.room_failed, lifecycle.background_entered, lifecycle.foreground_returned]
+	var before: Array = signals.map(func(s): return s.get_connections().size())
+	var guide: Label = GUIDE.new()
+	root.add_child(guide)
+	guide.setup(spy, null, lifecycle)
+	check(guide.state_key == "login" and guide.connection_count() == signals.size(), "guide starts at login and listens only to existing Session and lifecycle signals")
+	spy.busy = true
+	await create_timer(0.3).timeout
+	var polled: String = guide.state_key
+	spy.busy = false
+	spy.connected = true
+	spy.authenticated.emit()
+	check(polled == "connecting" and guide.state_key == "lobby", "busy has no signal, so a bounded poll shows connecting, then lobby after authentication")
+	var keys: Array = []
+	var room := func(phase: String, round_id: int, self_ready: bool, other_ready: bool, host: String) -> void:
+		spy.match_id = "room-a"
+		spy.snapshot = {"phase": phase, "round_id": round_id, "host_id": host, "token": "PRIVATE_TOKEN", "players": [
+			{"user_id": "PRIVATE_SELF", "username": "PRIVATE_NAME", "connected": true, "ready": self_ready},
+			{"user_id": "PRIVATE_OTHER", "connected": true, "ready": other_ready}]}
+		spy.snapshot_received.emit(spy.snapshot)
+		keys.append(guide.state_key)
+	spy.joined.emit()
+	room.call("lobby", 1, false, false, "PRIVATE_SELF")
+	room.call("lobby", 1, true, false, "PRIVATE_SELF")
+	room.call("lobby", 1, true, true, "PRIVATE_SELF")
+	room.call("lobby", 1, true, true, "PRIVATE_OTHER")
+	room.call("countdown", 1, true, true, "PRIVATE_SELF")
+	room.call("playing", 1, true, true, "PRIVATE_SELF")
+	room.call("results", 1, true, true, "PRIVATE_SELF")
+	var results_text: String = guide.text
+	room.call("lobby", 2, false, false, "PRIVATE_SELF")
+	check(keys == ["ready_needed", "waiting_peer", "host_start", "waiting_host", "countdown", "playing", "results", "ready_needed"] and results_text.contains("第1局") and guide.text.contains("第2局"), "authoritative snapshot drives ready, host, countdown, playing, results and next-round stages")
+	check(not guide.text.contains("PRIVATE") and not results_text.contains("PRIVATE"), "guide text never carries ids, names or snapshot fields")
+	var updates_before: int = guide.text_updates
+	for i in range(5):
+		guide.refresh()
+	var child_count := guide.get_child_count()
+	var instance := guide.get_instance_id()
+	for i in range(30):
+		await process_frame
+	check(guide.text_updates == updates_before and guide.get_child_count() == child_count and guide.get_instance_id() == instance, "unchanged state neither rewrites text nor rebuilds nodes across frames")
+	spy.match_id = ""
+	spy.snapshot = {}
+	spy.left.emit()
+	var after_leave: String = guide.state_key
+	spy.room_failed.emit("module_failure")
+	var failed: String = guide.state_key
+	spy.match_id = "room-b"
+	spy.joined.emit()
+	check(after_leave == "lobby" and failed == "room_failed" and guide.state_key == "syncing" and not guide.text.contains("第"), "leaving clears the old round, room failure is not results, and a new room waits for its own snapshot")
+	spy.match_id = ""
+	spy.snapshot = {}
+	spy.left.emit()
+	lifecycle.enter_background("simulated")
+	var hidden_key: String = guide.state_key
+	lifecycle.return_foreground("simulated")
+	var returned_key: String = guide.state_key
+	var logins_after_show: int = spy.logins
+	spy.connected = true
+	spy.authenticated.emit()
+	check(hidden_key == "background" and returned_key == "after_background" and logins_after_show == 0 and guide.state_key == "lobby", "background logout then foreground asks for manual relogin, cleared only by a real authentication")
+	spy._on_closed()
+	check(guide.state_key == "after_disconnect" and not spy.connected, "unexpected socket close is shown as ended session, not normal results")
+	guide.release()
+	var after: Array = signals.map(func(s): return s.get_connections().size())
+	var frozen: String = guide.text
+	spy.connected = true
+	spy.authenticated.emit()
+	spy.snapshot_received.emit({})
+	lifecycle.enter_background("simulated")
+	check(after == before and guide.connection_count() == 0 and guide.text == frozen, "released guide disconnects every signal and ignores later callbacks")
+	guide.queue_free()
+	lifecycle.queue_free()
+	await process_frame
+	spy.free()
+
+func _test_guide_layout() -> void:
+	var sizes := [Vector2(1152, 648), Vector2(1402, 648), Vector2(800, 600)]
+	var failures_seen: Array = []
+	for size in sizes:
+		var holder := Control.new()
+		holder.size = size
+		root.add_child(holder)
+		var entry: Control = load("res://tests/cross_platform/entry.tscn").instantiate()
+		holder.add_child(entry)
+		await process_frame
+		await process_frame
+		var guide: Label = entry.guide
+		guide.text = GUIDE.text_for("playing", 12)
+		await process_frame
+		await process_frame
+		var guide_rect := guide.get_global_rect()
+		var field := entry.find_child("PlayerName", true, false) as Control
+		var marker := entry.find_child("IsolatedTestLabel", true, false) as Control
+		var inside: bool = guide_rect.position.x >= 0 and guide_rect.end.x <= size.x + 0.5
+		var stacked: bool = guide_rect.position.y >= marker.get_global_rect().end.y - 0.5 and guide_rect.end.y <= entry.main.global_position.y + 0.5
+		var clear: bool = field != null and field.get_global_rect().position.y >= guide_rect.end.y
+		var bounded: bool = guide.get_line_count() <= guide.max_lines_visible and entry.main.offset_top <= 120.0
+		if not (guide.is_visible_in_tree() and guide.theme == entry.main.theme and inside and stacked and clear and bounded):
+			failures_seen.append("%dx%d" % [int(size.x), int(size.y)])
+		holder.queue_free()
+		await process_frame
+	check(failures_seen.is_empty(), "longest guide wraps within 3 lines above Main at desktop, landscape-phone and narrow widths")
+	var entry: Control = load("res://tests/cross_platform/entry.tscn").instantiate()
+	root.add_child(entry)
+	await process_frame
+	await process_frame
+	var bar := entry.find_child("AcceptanceBar", true, false) as Control
+	var panel: Control = entry.diagnostics_panel
+	check(not entry.guide.get_global_rect().intersects(bar.get_global_rect()) and panel.offset_top >= entry.guide.get_global_rect().end.y - 0.5, "guide stays clear of the bottom test buttons and the diagnostics panel starts below it")
+	entry.queue_free()
+	await process_frame
