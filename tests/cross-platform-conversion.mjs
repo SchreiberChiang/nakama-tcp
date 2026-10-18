@@ -24,7 +24,7 @@ if (step === 'convert') {
  if (!bridge.includes('decodedBridge') || !bridge.includes('lifecycleBridge')) throw Error('missing bridge');
  const target = path.join(get('out'), 'minigame'); fs.mkdirSync(target, {recursive:true});
  fs.mkdirSync(path.join(target,'godot-data')); fs.writeFileSync(path.join(target,'godot-data/local-interfaces.js'),bridge);
- const appid = args.includes('--appid-from') ? JSON.parse(fs.readFileSync(get('appid-from'))).appid : 'wx0000000000000000';
+ const appid = args.includes('--appid-from') ? JSON.parse(fs.readFileSync(get('appid-from'))).appid : 'wx' + '0'.repeat(16);
  fs.writeFileSync(path.join(target,'project.config.json'),JSON.stringify({appid}));
  console.log('PRIVATE_RAW_APPID ' + appid);
 }
@@ -49,7 +49,7 @@ if (step === 'verify' && !fs.existsSync(path.join(get('project'),'project.config
   const manifest = {schema:1,source_sha:'a'.repeat(40),source_dirty:true,godot_version:'4.7.2.stable.steam.ed1daf0bf',stage:'exported-and-audited',entry:'res://tests/cross_platform/entry.tscn',development_key:'defaultkey',pck:{file:'test.pck',bytes:pck.length,sha256:digest(pck)}};
   const manifestFile = put('package/manifest.json', JSON.stringify(manifest));
   const options = {root,tool,engine,packageDir};
-  const appid = 'wx1234567890abcdef';
+  const appid = 'wx' + 'a'.repeat(16);
   const summary = await convertCrossPlatform({...options,out:out('success'),appid}); count++;
   const trace = readFileSync(path.join(out('success'),'trace.jsonl'),'utf8').trim().split('\n').map(JSON.parse);
   test(() => assert.deepEqual(trace.map(call=>call.step), ['check','convert','verify']));
