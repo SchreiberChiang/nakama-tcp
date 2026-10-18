@@ -1,21 +1,12 @@
 import { checked } from "./process.mjs";
 import { mkdirSync } from "node:fs";
 import { checkedGodot } from "./test-profile.mjs";
-import { restoreSourceAssets } from "./restore-source-assets.mjs";
+import { prepareTests } from "./test-prepare.mjs";
 if (!process.env.GODOT) throw Error("Set GODOT to Godot 4.7.2 executable.");
 mkdirSync(".local", { recursive: true });
-// A fresh checkout has neither the restored font nor Godot's global class cache.
-// Prepare both before any runtime test loads Session and its SDK dependencies.
-restoreSourceAssets();
-await checkedGodot(
-  ["--headless", "--editor", "--path", "client", "--import"],
-  { timeout: 120000, log: ".local/import.log" },
-);
-// This test itself owns Godot children; avoid another hard-killing Node parent.
-await import("../tests/test-profile.mjs");
+await prepareTests();
 // Exercise this same preflight in a disposable cold project without a backend.
 if (process.argv.includes("--prepare-only")) {
-  console.log("TEST_PREPARATION_OK");
   process.exit(0);
 }
 await import("./test-cold-start.mjs");

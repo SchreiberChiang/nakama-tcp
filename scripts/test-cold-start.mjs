@@ -1,10 +1,9 @@
-// Real entry-point regression: no source font, Godot cache, npm packages or backend.
+// Exercise the entry's shared preparation with no font/cache/packages/backend.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { checked } from "./process.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { FONT_SHA256 } from "./restore-source-assets.mjs";
 
 if (!process.env.GODOT) throw Error("Set GODOT to Godot 4.7.2 executable.");
@@ -12,6 +11,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const local = path.join(root, ".local");
 mkdirSync(local, { recursive: true });
 const dir = mkdtempSync(path.join(local, "cold-start-"));
+const previousCwd = process.cwd();
+let cleanupConfirmed = true;
 try {
   cpSync(path.join(root, "client"), path.join(dir, "client"), {
     recursive: true,
@@ -25,24 +26,25 @@ try {
   const font = path.join(dir, "client/assets/fonts/TemplateCJK.otf");
   assert.equal(existsSync(path.join(dir, "client/.godot")), false);
   assert.equal(existsSync(font), false);
-  const output = await checked(process.execPath, ["scripts/test.mjs", "--prepare-only"], {
-    cwd: dir,
-    // Covers the serial 15s probe, 120s import, profile runner and 90s smoke.
-    timeout: 240000,
-    // Keep the preflight owner alive through its bounded Godot/profile cleanup.
-    cooperativeStop: true,
-    log: path.join(local, "cold-start.log"),
-  });
-  assert.match(output, /PROFILE_RUNNER_CHECKS \d+ FAILURES 0/);
-  assert.match(output, /real Godot Session uses exact owned path/);
-  assert.match(output, /TEST_PREPARATION_OK/);
+  process.chdir(dir);
+  const { prepareTests } = await import(pathToFileURL(path.join(dir, "scripts/test-prepare.mjs")).href);
+  // No outer Node timeout can kill the owner before its Godot/profile cleanup.
+  // Each Godot invocation retains the shared runner's own bounded deadline.
+  await prepareTests();
   assert.ok(existsSync(cache), "editor import must generate the global class cache");
   assert.equal(createHash("sha256").update(readFileSync(font)).digest("hex"), FONT_SHA256);
   const importLog = readFileSync(path.join(dir, ".local/import.log"), "utf8");
   assert.match(importLog, /Godot Engine/);
-  console.log("COLD_START_CHECKS 1 FAILURES 0: real test entry restored font, imported fresh project, and passed isolated profiles without backend");
+  const result = "COLD_START_CHECKS 1 FAILURES 0: shared test preparation restored font, imported fresh project, and passed isolated profiles without backend";
+  writeFileSync(path.join(local, "cold-start.log"), importLog + "\n" + result + "\n");
+  console.log(result);
+} catch (error) {
+  if (error.exitConfirmed === false) cleanupConfirmed = false;
+  throw error;
 } finally {
+  process.chdir(previousCwd);
   const relative = path.relative(local, dir);
   assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative) && path.basename(dir).startsWith("cold-start-"));
-  rmSync(dir, { recursive: true, force: true });
+  if (cleanupConfirmed) rmSync(dir, { recursive: true, force: true });
+  else console.error(`Cold project retained because child exit was not confirmed: ${dir}`);
 }
