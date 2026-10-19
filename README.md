@@ -2,7 +2,7 @@
 
 当前协议v3新增请求回调隔离与选择事务：两端一起升级，旧v2不能混连。范围、运行方法和本轮证据见[REQUEST_ISOLATION](docs/REQUEST_ISOLATION.md)。
 
-微信＋原生电脑阶段已获用户允许收尾；最新诊断包的横屏边界、分页滚动与中文概览获用户真机确认，对局中打开/关闭诊断的触控清理与恢复仍需真机复验。固定版本、证据边界与接入前四步检查见 [阶段收尾](docs/WECHAT_STAGE_CLOSEOUT.md)。
+微信＋原生电脑阶段已获用户允许收尾；最新诊断包的横屏边界、分页滚动与中文概览获用户真机确认，此前缺测的对局诊断触控已使用同一原包补测，用户三项人工检查均报告正常，动作及证据边界见收尾报告。固定版本、证据边界与接入前四步检查见 [阶段收尾](docs/WECHAT_STAGE_CLOSEOUT.md)。
 
 分阶段目标、当前状态、未测项与接续入口见 [PROJECT_STATUS](docs/PROJECT_STATUS.md)。本轮需求逐项验收与证据边界见 [ACCEPTANCE](docs/ACCEPTANCE.md)；时间轴两项审查与独立复验见 [TIMELINE_REVIEW](docs/TIMELINE_REVIEW.md)。
 
