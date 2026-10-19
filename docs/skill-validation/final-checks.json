@@ -1,0 +1,16 @@
+{
+  "final_scenarios": 10,
+  "final_skill_hashes_match": true,
+  "final_full_body_read_observed": 10,
+  "final_explicit_host_injection_matches": true,
+  "natural_language_sessions_without_explicit_injection": 9,
+  "same_prompt_model_baseline_controls": 4,
+  "attempt_count": 26,
+  "valid_consultations": 23,
+  "environment_failures": 3,
+  "runtime_protocol_unchanged": true,
+  "original_phase1_clean": true,
+  "head_unchanged": true,
+  "diff_check": true,
+  "limitation": "Observed CLI and local app-server evidence only; no OS read sandbox, statistical improvement, desktop UI activation or game/device execution verified."
+}

@@ -1,5 +1,6 @@
 # Template maintenance
 
+- 玩法设计、资产接入、联机诊断和项目接手使用仓库技能 [nakama-project-advisor](.agents/skills/nakama-project-advisor/SKILL.md)；先核对 PROJECT_STATUS 的已确认决定与已接受风险，旧缺测不自动变成阻塞项。
 - 先读 README、docs/ADDING_GAME.md、docs/PROTOCOL.md、docs/VALIDATION.md；验证记录不替代当前检查。
 - 默认不安装玩法。测试模块只在独立测试注册表/构建中启用；不得默认注册、预加载或进入玩家导出。
 - 客户端仅通过 Session 调用 SDK；保留请求清理、日志脱敏、连接/房间代际检查。密码、token、聊天正文不进入日志或磁盘历史。

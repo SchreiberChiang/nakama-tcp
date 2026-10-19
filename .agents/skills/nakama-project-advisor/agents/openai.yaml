@@ -1,0 +1,6 @@
+interface:
+  display_name: "Nakama 联机项目顾问"
+  short_description: "结合真实代码推荐玩法同步与资产接入方案，维护项目决定、风险和小步验收"
+  default_prompt: "请用 $nakama-project-advisor 结合当前仓库，分析我的玩法想法并推荐下一步最小可验收方案。"
+policy:
+  allow_implicit_invocation: true

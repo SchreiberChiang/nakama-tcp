@@ -1,0 +1,3 @@
+Synthetic evaluation input created for this skill test; not a downloaded asset.
+The hypothetical vendor supplied no license grant or mobile binaries.
+Only the listed files are available. Do not infer compatibility from this fixture.
