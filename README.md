@@ -57,6 +57,8 @@ node scripts/run-with-server.mjs $env:GODOT --path client -- --profile=local-one
 
 ## 新玩法接入
 
+需要先讨论玩法同步、资产适配或接手计划时，在本仓库内的新 Codex 会话输入 `$nakama-project-advisor`，也可直接描述需求触发[项目顾问 skill](.agents/skills/nakama-project-advisor/SKILL.md)。仓库级 `.agents/skills` 随项目维护；加载证据、调用方法与限制见 [skill 验证记录](docs/skill-validation/REPORT.md)。
+
 按 [ADDING_GAME](docs/ADDING_GAME.md) 同时添加服务端模块和客户端视图，并在两端显式注册。共享 UI 不根据玩法 ID 判断车辆、地图、镜头或特殊参数。没有注册玩法时，登录/连接照常工作；建房必须有真实模块，底座不会用假玩法或空规则创建房间。
 
 房间核心复用原有 RPC、op code、`seq`、`round_id`、会话身份和容量校验，见 [PROTOCOL](docs/PROTOCOL.md)。模块负责解释自己的选项、输入和结果。客户端视图仅在 `playing` 阶段实例化，离开/结算时调用 `release()` 后释放。

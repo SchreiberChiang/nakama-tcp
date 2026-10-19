@@ -1,0 +1,13 @@
+config_version=5
+[application]
+config/name="Vehicle Demo (synthetic)"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+[autoload]
+DemoNet="*res://demo_net.gd"
+[input]
+accelerate={"deadzone":0.2,"events":[]}
+steer={"deadzone":0.2,"events":[]}
+[physics]
+common/physics_ticks_per_second=60
+[editor_plugins]
+enabled=PackedStringArray("res://addons/vehicle_tools/plugin.cfg")

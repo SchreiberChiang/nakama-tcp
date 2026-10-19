@@ -1,0 +1,2353 @@
+{
+  "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+  "skill_files": {
+    ".agents\\skills\\nakama-project-advisor\\SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+    ".agents\\skills\\nakama-project-advisor\\agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+    ".agents\\skills\\nakama-project-advisor\\references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+    ".agents\\skills\\nakama-project-advisor\\references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+  },
+  "discovery": [
+    {
+      "cwd": "<delivery-worktree>",
+      "project_skill": [
+        {
+          "name": "nakama-project-advisor",
+          "scope": "repo",
+          "enabled": true,
+          "path": "<delivery-worktree>\\.agents\\skills\\nakama-project-advisor\\SKILL.md"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "cwd": "<with-skill>",
+      "project_skill": [
+        {
+          "name": "nakama-project-advisor",
+          "scope": "repo",
+          "enabled": true,
+          "path": "<with-skill>\\.agents\\skills\\nakama-project-advisor\\SKILL.md"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "cwd": "<without-skill>",
+      "project_skill": [],
+      "errors": []
+    }
+  ],
+  "runs": [
+    {
+      "run": "asset-with-skill-matrix",
+      "case": "asset",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "20256b0731510acc3fd82e2a7a4391fe8d0eae220fefbc29e72122ef519eb3a6",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "144da0a735ceec63b7e4dc9d4ebecb6d272f23484588cab284bcbf7e63ea770b"
+        },
+        {
+          "event_line": 8,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg --files -g AGENTS.md -g '\"'!client/addons/**'\"' -g '\"'!*lock*'\"'; rg --files evaluation-input/vehicle-demo; Get-Content -LiteralPath 'docs/ADDING_GAME.md'\"",
+          "exit_code": 0,
+          "output_sha256": "d5058ad7a43b50d3a443656d27baf71b67058944b793a6d160438ee4bbc36ca4"
+        },
+        {
+          "event_line": 9,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "37ec431cc3e41a6e20852e54099bdf99e72c3521d8b8a02c29d46d0ee3d68108"
+        },
+        {
+          "event_line": 12,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'client/core/game_module.gd','server/src/types.ts','client/core/module_registry.gd','server/src/registry.ts','client/project.godot'; rg -n 'func |Vector2|Vector3|position|rotation|velocity' client/core/snapshot_timeline.gd; rg -n 'submit_input|input_provider|INPUT|command_results|generation|epoch' client/core/session.gd; rg -n 'playing|release|create_view|instantiate|collect_input|timeline' client/ui/main.gd\"",
+          "exit_code": 0,
+          "output_sha256": "2978be5b754329d3ad2c10a486fb312a52e7c535e1a1401259511576c9c21595"
+        },
+        {
+          "event_line": 13,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md'; Get-ChildItem -LiteralPath 'evaluation-input/vehicle-demo' -Recurse -Force | Select-Object FullName,Length; Get-Content -LiteralPath 'evaluation-input/vehicle-demo/project.godot','evaluation-input/vehicle-demo/car.gd','evaluation-input/vehicle-demo/demo_net.gd','evaluation-input/vehicle-demo/native/vehicle.gdextension','evaluation-input/vehicle-demo/addons/vehicle_tools/plugin.cfg','evaluation-input/vehicle-demo/ASSET_NOTE.txt'; Get-Item -LiteralPath '.git' -Force | Select-Object FullName,PSIsContainer\"",
+          "exit_code": 0,
+          "output_sha256": "77dcf6265920325ebd1e3f149bcd58f0988aa56431da5cf0f8ed71f4f73ba575"
+        },
+        {
+          "event_line": 17,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'function matchJoinAttempt|function matchLeave|function matchLoop|function remove|function nextRound|snapshotAccumulator|inputExpired|\\\\.step\\\\(|\\\\.leave\\\\(|transfer|changeHost' server/src/main.ts; Get-Content -LiteralPath 'server/tsconfig.json'; rg -n 'background|focus|touch|pause|clear|release' platform/wechat/*.gd client/core/*.gd client/ui/main.gd; rg -n '.' evaluation-input/vehicle-demo\"",
+          "exit_code": 0,
+          "output_sha256": "47464d604e94703b359f4e7107de329282538f12400be803b9f714c895190d4d"
+        },
+        {
+          "event_line": 18,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 22; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 80 -First 25; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 432 -First 32; Get-Content -LiteralPath 'client/ui/main.gd' | Select-Object -Skip 308 -First 40; rg -n 'snapshotRate|snapshot_rate|configuredSnapshotRate|inputExpired|stateTimeout|phase \"'!==|sessionId|module.step|module.leave|host_id|game.step|game.leave|minimumPlayers'\"' server/src/main.ts; Get-Content -LiteralPath 'platform/wechat/README.md' -TotalCount 100; Get-Content -LiteralPath '.git'\"",
+          "exit_code": 1,
+          "output_sha256": "3e1b58f19eb3c865c4b29433f326c244bb86c7ff417fc24c6853c1420d8c054e"
+        },
+        {
+          "event_line": 20,
+          "id": "item_9",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.git/HEAD'; Get-ChildItem -LiteralPath '.git/refs/heads' -Recurse -File | ForEach-Object { \"'$_.FullName; Get-Content -LiteralPath $_.FullName }; Get-Content -LiteralPath '\"'server/src/main.ts' | Select-Object -Skip 415 -First 30; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 505 -First 40; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 910 -First 100; rg -n 'background|focus|touch|pause|clear|release' client/core platform/wechat -g '*.gd' -g '\"'!tests/**'\"'\"",
+          "exit_code": 0,
+          "output_sha256": "676de4d6b780ca2ab58f7c2686d0dc78fcee79d500d1481d134b03b1b211a5d3"
+        }
+      ],
+      "answer_sha256": "7412110e0fec78dcc08b8b48c9c831232b2ceba69928015c05243fb80779b385",
+      "events_sha256": "7103cadfcd74cb1f6252f214a7d7954769513b67296686ef1978d23a3fe4b363",
+      "elapsed_seconds": 79.71,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "asset-with-skill-v2",
+      "case": "asset",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "20256b0731510acc3fd82e2a7a4391fe8d0eae220fefbc29e72122ef519eb3a6",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "a33b0b039382b725fe4d5033a88364bb5820ad6bc0d6a4bd11057b5bc832bae3"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "f6ea8e11ec55a97e8af785301d7e40ac9fe373d9d7ac92f510953390e78ecda2"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg --files -g AGENTS.md -g '\"'!client/addons/**'\"'; rg --files evaluation-input/vehicle-demo; Get-Content -LiteralPath 'docs/ADDING_GAME.md'\"",
+          "exit_code": 0,
+          "output_sha256": "88d1cc722410cc896a0ecb41370bdf71093b2cf60abad1a2b3e3a102603e53af"
+        },
+        {
+          "event_line": 13,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'client/core/game_module.gd'; Get-Content -LiteralPath 'client/core/module_registry.gd'; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'client/project.godot'; Get-Content -LiteralPath 'platform/wechat/README.md'\"",
+          "exit_code": 0,
+          "output_sha256": "acbbacce4ad00fecf44a99a2b39ca02317479fa0a29d0eaeb302a126e94ac201"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'func (submit_input|_process)|input_provider|INPUT|send_match|continuous_input|timeline|func .*view|release\\\\(' client/core/session.gd client/ui/main.gd client/core/snapshot_timeline.gd; rg -n 'roomCapacity|minimumPlayers|joinRejection|snapshotAccumulator|configuredSnapshotRate|inputExpired|module.step|sessionId|phase \"'!==|function matchLeave|function matchJoinAttempt'\"' server/src/main.ts\"",
+          "exit_code": 0,
+          "output_sha256": "57502ef6ddd5a8e8cedbb3f455b9a9709e758d460fb26622163c331835d9a812"
+        },
+        {
+          "event_line": 15,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md'; Get-ChildItem -LiteralPath '.git' -Force -ErrorAction SilentlyContinue | Select-Object Mode,Name; Get-Content -LiteralPath 'evaluation-input/vehicle-demo/project.godot'; Get-Content -LiteralPath 'evaluation-input/vehicle-demo/car.gd'; Get-Content -LiteralPath 'evaluation-input/vehicle-demo/demo_net.gd'; Get-Content -LiteralPath 'evaluation-input/vehicle-demo/ASSET_NOTE.txt'; Get-Content -LiteralPath 'evaluation-input/vehicle-demo/native/vehicle.gdextension'; Get-Content -LiteralPath 'evaluation-input/vehicle-demo/addons/vehicle_tools/plugin.cfg'\"",
+          "exit_code": 0,
+          "output_sha256": "b9df4590ba51356e5e99e38759a1e3168ba67dc6312e95eb48f2ac7086f229b3"
+        },
+        {
+          "event_line": 19,
+          "id": "item_9",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$src = Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$src[62..88]; $src[400..447]; $src[501..530]; $src[910..1024]; Get-Content -LiteralPath '\"'docs/WECHAT_STAGE_CLOSEOUT.md' -TotalCount 80; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 25; rg -n 'module|fixture|resource|Node3D|SubViewport' scripts/audit.mjs scripts/source-audit.mjs\"",
+          "exit_code": 0,
+          "output_sha256": "54aa24019f92105f560053e0b893e7d24ddfcfa0ed2e7ec80389ec1f10cc240c"
+        },
+        {
+          "event_line": 20,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'git --no-optional-locks status --short; git rev-parse --show-toplevel; git rev-parse --abbrev-ref HEAD; git rev-parse HEAD; $src = Get-Content -LiteralPath '\"'client/core/session.gd'; \"'$src[88..101]; $src[427..463]; $src = Get-Content -LiteralPath '\"'client/ui/main.gd'; \"'$src[310..350]; Get-Content -LiteralPath '\"'client/core/snapshot_timeline.gd' -TotalCount 120; rg -n 'Vector2|position|velocity|rotation|lerp|angle' client/core/snapshot_timeline.gd\"",
+          "exit_code": 0,
+          "output_sha256": "158883b433ff152cfbf06f2362b74e209303146ad3d9c0fcdf36b1da6e267b3c"
+        }
+      ],
+      "answer_sha256": "f34351eaa41ab4f2a5a6cd76e9f89db9d03fb0ad73855046230418d1770bd374",
+      "events_sha256": "4ccc9d29ca2c019b62258b251d007d8fdddf3ba65ce889626c27e6aec86097ef",
+      "elapsed_seconds": 78.99,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "asset-without-skill-matrix",
+      "case": "asset",
+      "group": "without-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "20256b0731510acc3fd82e2a7a4391fe8d0eae220fefbc29e72122ef519eb3a6",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<without-skill>"
+        }
+      ],
+      "catalog_entries": [],
+      "explicit_injections": [],
+      "successful_body_reads": [],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content README.md; Get-Content docs/ADDING_GAME.md; Get-Content docs/PROTOCOL.md; Get-Content docs/VALIDATION.md; rg --files -g AGENTS.md -g '*SKILL.md' -g '\"'!vendor/**'\"'; rg --files evaluation-input/vehicle-demo\"",
+          "exit_code": 0,
+          "output_sha256": "71897cc2290a249f079ec443db8ebfb8de962fe6771062946d02e97d9b00895e"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content AGENTS.md; Get-Content evaluation-input/vehicle-demo/project.godot; Get-Content evaluation-input/vehicle-demo/car.gd; Get-Content evaluation-input/vehicle-demo/demo_net.gd; Get-Content evaluation-input/vehicle-demo/native/vehicle.gdextension; Get-Content evaluation-input/vehicle-demo/addons/vehicle_tools/plugin.cfg; Get-Content evaluation-input/vehicle-demo/ASSET_NOTE.txt'",
+          "exit_code": 0,
+          "output_sha256": "3234414603ad3f50c6c5f09838520c921c40c1a21e86d0a69e6d10506a71edca"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content client/core/game_module.gd; Get-Content client/core/module_registry.gd; Get-Content server/src/types.ts; Get-Content server/src/registry.ts; Get-Content platform/wechat/README.md; Get-Content docs/WECHAT_STAGE_CLOSEOUT.md; rg -n 'collect_input|continuous_input|submit_input|timeline|SubViewport|release\\\\(|apply_snapshot' client/ui/main.gd client/core/session.gd; rg --files platform/wechat; Get-Content scripts/audit.mjs\"",
+          "exit_code": 0,
+          "output_sha256": "91e6b875804e841329a7c21e99b244524269a6ea129deac566a1cd666c53ba5f"
+        },
+        {
+          "event_line": 12,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content '<USER_HOME>/.codex/skills/wechatide-skill/SKILL.md'; Get-Content client/core/snapshot_timeline.gd | Select-Object -First 180; Get-Content client/core/session.gd | Select-Object -Skip 75 -First 30; Get-Content client/core/session.gd | Select-Object -Skip 430 -First 38; Get-Content client/ui/main.gd | Select-Object -Skip 313 -First 92; Get-Content client/project.godot | Select-Object -First 65; Get-ChildItem -LiteralPath evaluation-input/vehicle-demo -Recurse -Force | Select-Object FullName,Length\"",
+          "exit_code": 0,
+          "output_sha256": "81d588322bb98d734bbd2e651baba5336e2cc99b0f3e0a2e489933b394b1ccd9"
+        }
+      ],
+      "answer_sha256": "ca1e902a47ea78f8be20fe3edb25af9c41cedd9c62c9beea224a8cf66ed88283",
+      "events_sha256": "eb9d85c307c7af37818fc67446375c1d7996adad828b69a602947cd64669be0e",
+      "elapsed_seconds": 55.48,
+      "skill_version": null
+    },
+    {
+      "run": "conflict-with-skill-matrix",
+      "case": "conflict",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "c424237cd04450698f709ef177b7aaabdddd45506fae9a2d0c46d290ce47d4d4",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "144da0a735ceec63b7e4dc9d4ebecb6d272f23484588cab284bcbf7e63ea770b"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "37ec431cc3e41a6e20852e54099bdf99e72c3521d8b8a02c29d46d0ee3d68108"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'; rg -n 'TICK_RATE|snapshotRate|snapshot_rate|GAME_SNAPSHOT|module.step|broadcast|function.*[Ss]napshot|tickRate' server/src/main.ts; rg -n 'input|timeline|prediction|reconcil|interpol|extrapol' client/core/game_module.gd client/core/session.gd client/core/snapshot_timeline.gd; Get-Item -Force -LiteralPath '.git' -ErrorAction SilentlyContinue; rg --files -g AGENTS.md -g '*fixture*' -g '*registry*' -g '*types*'\"",
+          "exit_code": 0,
+          "output_sha256": "b9139fcd320557d43be1c7738c8731eb704fbf6e9c2e2a94a4703e7cabc89adf"
+        },
+        {
+          "event_line": 13,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$src = Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$src[62..76]; $src[110..213]; $src[396..438]; $src[945..1020]; $session = Get-Content -LiteralPath '\"'client/core/session.gd'; \"'$session[87..101]; $session[430..461]; Get-Content -LiteralPath '\"'client/core/game_module.gd'; \"'$timeline = Get-Content -LiteralPath '\"'client/core/snapshot_timeline.gd'; \"'$timeline[305..339]; rg -n '\"'timeline|apply_snapshot|collect_input|release|input_provider' client/ui/main.gd client/tests/fixture_view.gd; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 22\"",
+          "exit_code": 0,
+          "output_sha256": "2a5f87a59a4656ba1810e43f2248422796cd7f9b99daf3c90dc40dda50a35edb"
+        },
+        {
+          "event_line": 14,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md'; git --no-optional-locks status --short; git --no-optional-locks log -1 --format='%h %s'; git --no-optional-locks branch --show-current; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'; Get-Content -LiteralPath 'tests/fixtures/module.ts'\"",
+          "exit_code": 0,
+          "output_sha256": "a2d9ed4983366533b70a867ad39ab35eee0984ffa90c34cacd984cd6532d1323"
+        }
+      ],
+      "answer_sha256": "491d626d0023bae4a68cfc210b63e556ac0674ec70c8278f090a1d59859147d0",
+      "events_sha256": "e047505164b1484b0a2d9f4a3bb99090af7ab96fe6f6ae3dce6343e6f4abdaaa",
+      "elapsed_seconds": 65.93,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "conflict-with-skill-v2",
+      "case": "conflict",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "c424237cd04450698f709ef177b7aaabdddd45506fae9a2d0c46d290ce47d4d4",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "a33b0b039382b725fe4d5033a88364bb5820ad6bc0d6a4bd11057b5bc832bae3"
+        },
+        {
+          "event_line": 8,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'; rg -n 'TICK_RATE|SNAPSHOT|snapshotRate|snapshot_rate|broadcastMessage|module.step|tickRate|STATE_TIMEOUT|matchLeave|matchJoinAttempt' server/src/main.ts; rg -n 'input_interval|INPUT|snapshot|timeline|collect_input|submit_input|continuous' client/core/session.gd client/core/game_module.gd client/core/snapshot_timeline.gd; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'\"",
+          "exit_code": 0,
+          "output_sha256": "d9b25c7ee542f33570bb96dff420f0c69d6041fdb8e706834bf6409ebb8f108d"
+        },
+        {
+          "event_line": 9,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "f6ea8e11ec55a97e8af785301d7e40ac9fe373d9d7ac92f510953390e78ecda2"
+        },
+        {
+          "event_line": 12,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'server/src/types.ts'; \"'$s = Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$s[64..76]; $s[166..212]; $s[396..422]; $s[503..527]; $s[933..1020]; $c = Get-Content -LiteralPath '\"'client/core/session.gd'; \"'$c[10..23]; $c[83..101]; $c[430..449]; Get-Content -LiteralPath '\"'client/core/game_module.gd'; \"'$t = Get-Content -LiteralPath '\"'client/core/snapshot_timeline.gd'; \"'$t[140..176]; Get-Content -LiteralPath '\"'.agents/skills/nakama-project-advisor/references/design-and-assets.md'; Get-Item -Force -LiteralPath '.git' | Select-Object Name,Attributes,LinkType\"",
+          "exit_code": 0,
+          "output_sha256": "ece9813a9967592f60b6f1b31027180f4c62a24d122359fe8fdb84adb9dbb8a0"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.git/HEAD'; \"'$s = Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$s[423..450]; $s[889..934]; rg -n '\"'set_input_provider|input_provider|collect_input|apply_snapshot|release\\\\(' client/ui/main.gd; rg -n 'step:|position|velocity|collision|1 / 30' tests/fixtures/module.ts; rg -n 'predict|replay|rollback|reconcil' client/core server/src; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 24\"",
+          "exit_code": 0,
+          "output_sha256": "03f048dcb7da3f516e7ec94264d20f5908c63595c1375b5f58b000d616fe1705"
+        }
+      ],
+      "answer_sha256": "1b2aa6f6e1d64cb0d23f666313557ea7759758b06b77956b0ca36c03c0833e8d",
+      "events_sha256": "b528444618a657207c41696debae4dad446f893411191828be9009ef1d53867a",
+      "elapsed_seconds": 65.73,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "diagnostics-with-skill-v2",
+      "case": "diagnostics",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "2017378e57ded8f9be7ce8bbaa64596ceee431cd990d5250b772295ee1e8c8f2",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "a33b0b039382b725fe4d5033a88364bb5820ad6bc0d6a4bd11057b5bc832bae3"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "f6ea8e11ec55a97e8af785301d7e40ac9fe373d9d7ac92f510953390e78ecda2"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Item -Force -LiteralPath '.git' -ErrorAction SilentlyContinue | Select-Object FullName,Attributes; rg -n 'snapshot_rate|SNAPSHOT_RATE|tick_rate|INPUT.*RATE|input_rate|diagnostic|timeline|interpol' client/core client/ui server/src\"",
+          "exit_code": 0,
+          "output_sha256": "01524ac56c960b0428d7e5dc222accd81f78264415c47d62d9e1b6a5f71d4545"
+        },
+        {
+          "event_line": 12,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/SNAPSHOT_TIMELINE.md'; Get-Content -LiteralPath 'docs/WECHAT_STAGE_CLOSEOUT.md' -TotalCount 85; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 55 -First 60; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 420 -First 50; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 60 -First 25; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 955 -First 70; rg -n 'fps|FPS|rtt|RTT|1M|bytes|frame' client/tests/cross_platform/diagnostic*\"",
+          "exit_code": 1,
+          "output_sha256": "fa5392e59c3551aa8967652f34d5f640221187b585a32c7fddb302c35d5f6a71"
+        },
+        {
+          "event_line": 13,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"git --no-optional-locks status --short --branch; git rev-parse HEAD; Get-Content -LiteralPath 'client/core/game_module.gd'; Get-Content -LiteralPath 'client/core/session_diagnostics.gd'; Get-Content -LiteralPath 'client/core/module_registry.gd'; Get-Content -LiteralPath 'server/src/registry.ts'; rg -n 'INPUT|_process|_input_elapsed|0.0|send_input' client/core/session.gd; rg -n 'TICK_RATE|SNAPSHOT|snapshotAccumulator|configuredSnapshotRate|module.step' server/src/main.ts server/src/types.ts; rg -n 'enable_timeline|sample_presentation|ingest_snapshot|apply_snapshot|diagnostic|frame' client/ui/main.gd client/tests/cross_platform client/tests/fixture_view.gd\"",
+          "exit_code": 0,
+          "output_sha256": "99cfbb96a520f5dfce3b6f561be9dd59bf285269f3b89330d7a69e86f7626c08"
+        },
+        {
+          "event_line": 16,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'client/core/snapshot_timeline.gd' -TotalCount 95; Get-Content -LiteralPath 'client/tests/cross_platform/diagnostics_panel.gd' | Select-Object -Skip 180 -First 65; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 519 -First 32; Get-Content -LiteralPath 'client/ui/main.gd' | Select-Object -Skip 343 -First 29; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 150 -First 67; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 20; Get-Content -LiteralPath 'docs/SNAPSHOT_TIMELINE.md' -TotalCount 34\"",
+          "exit_code": 0,
+          "output_sha256": "f3564dee5f06892764f91aded6a7ca00423a9ebaed59cea41392d1e0b1c70d1d"
+        }
+      ],
+      "answer_sha256": "74581391e6b245859a734b686dfb64bc51b4b2f0fe46f32b5fdbec66cc70b3de",
+      "events_sha256": "6962d1c49a5fc09771eb5172dc04d4b9af355858cce81d41df3d6ae4760b6dcd",
+      "elapsed_seconds": 73.09,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "explicit-with-skill",
+      "case": "explicit",
+      "group": "with-skill",
+      "exit_code": 1,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7c782c3ed7a60572ecd83ecc62c33daf3acb310d8dda68b5119f823c8ff17747",
+      "model_requested": "gpt-6.1-sol",
+      "effort_requested": "model_reasoning_effort=\"medium\"",
+      "sandbox": "read-only",
+      "contexts": [
+        {
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [
+        {
+          "line": 9,
+          "role": "user",
+          "body_matches_recorded_skill": true,
+          "text_sha256": "1c45b05f7a4c1ae3cc43aa99a77f97326b77dd3df9b8408d4248ce030a1d5690"
+        }
+      ],
+      "successful_body_reads": [],
+      "commands": [],
+      "answer_sha256": null,
+      "events_sha256": "74d38c92632c4fe886b462e31174124a9b6ede06d563c6d41943676f1f865c97",
+      "elapsed_seconds": 6.1,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "explicit-with-skill-astra",
+      "case": "explicit",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7c782c3ed7a60572ecd83ecc62c33daf3acb310d8dda68b5119f823c8ff17747",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "read-only",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [
+        {
+          "line": 11,
+          "role": "user",
+          "body_matches_recorded_skill": true,
+          "text_sha256": "1c45b05f7a4c1ae3cc43aa99a77f97326b77dd3df9b8408d4248ce030a1d5690"
+        }
+      ],
+      "successful_body_reads": [],
+      "commands": [],
+      "answer_sha256": "21a60b1582cd1ea54794c7a07cf10cad5580d1dba92fa8c5f4e38b5bd728f138",
+      "events_sha256": "4ed2aa5ce3d1beb2ee6840ec13668c94246c491a46d658dded1ec62ebc01dfc0",
+      "elapsed_seconds": 46.45,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "explicit-with-skill-retry",
+      "case": "explicit",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7c782c3ed7a60572ecd83ecc62c33daf3acb310d8dda68b5119f823c8ff17747",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [
+        {
+          "line": 11,
+          "role": "user",
+          "body_matches_recorded_skill": true,
+          "text_sha256": "1c45b05f7a4c1ae3cc43aa99a77f97326b77dd3df9b8408d4248ce030a1d5690"
+        }
+      ],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'\"",
+          "exit_code": 0,
+          "output_sha256": "ba5ef9f05daecf18dcc2020409a56d1bf7122d249694e1923932408bb7052bbf"
+        },
+        {
+          "event_line": 7,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Location; git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD; git status --short; rg --files -g 'AGENTS.md' -g 'README*' -g 'project.godot' -g 'package.json' -g '*registry*' -g '*session*' -g '*Session*'\"",
+          "exit_code": 0,
+          "output_sha256": "cfbb9b745e98978492fa5b80be970d17342084608e786f30ceef7e5245139a07"
+        },
+        {
+          "event_line": 10,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'README.md','docs/ADDING_GAME.md','docs/PROTOCOL.md','docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "611873127ea0c058b315e82c56c818623b573796524b79243fe926028a3a8f02"
+        },
+        {
+          "event_line": 11,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md','.agents/skills/nakama-project-advisor/references/source-map.md','.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "0918ce64a4e11fb16bae7e6f95c48265f20b0e046c078b5da31a355026a81e88"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'platform/wechat/README.md','client/project.godot'; rg -n 'GameModule|release|instantiate|factory|playing|timeline|submit_input' client/ui/main.gd client/tests/fixture_view.gd client/core/snapshot_timeline.gd; rg -n 'hide|show|background|suspend|disconnect|close|onHide|onShow' platform/wechat client/core client/tests/cross_platform -g '*.gd' -g '*.js'; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 75\"",
+          "exit_code": 0,
+          "output_sha256": "50b83b4328af4546a0eb18c8ff1a5217a85ee0455c44fe059e28e8462642ed90"
+        },
+        {
+          "event_line": 15,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'server/src/types.ts','server/src/registry.ts','client/core/module_registry.gd','client/core/game_module.gd'; rg -n 'func (_process|submit_input|command_results|_.*background|_.*hide)|input_interval|input_rate|application|suspend|generation|input_provider' client/core/session.gd; rg -n 'matchJoinAttempt|matchLeave|matchLoop|snapshotAccumulator|configuredSnapshotRate|command_results|phase \"'!==|phase ===|inputExpired|sessionId|next_round|staying'\"' server/src/main.ts\"",
+          "exit_code": 0,
+          "output_sha256": "d77f901344ab49c6db8f601d558415eaa14a468623a61bbed04a1f1d0f0071da"
+        },
+        {
+          "event_line": 18,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'server/src/main.ts'; \"'$c=Get-Content -LiteralPath $p; foreach($r in @(@(60,78),@(396,448),@(503,543),@(735,788),@(843,885),@(910,1022))){ for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}' -f \"'$i,$c[$i-1] } }; $p='\"'client/core/session.gd'; \"'$c=Get-Content -LiteralPath $p; foreach($r in @(@(90,135),@(433,465))){ for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}' -f \"'$i,$c[$i-1] } }; rg --files client/platform platform/wechat client/tests/cross_platform; rg -n '\"'lifecycle|onHide|onShow|logout|clear|register_module|submit_input' client/platform client/tests/cross_platform/main.gd client/tests/cross_platform/test_session.gd platform/wechat -g '*.gd' -g '*.js'\"",
+          "exit_code": 1,
+          "output_sha256": "e9149a7c10b702401c9f910a73f1049063001d1db1e9e2379cc649b914c27966"
+        },
+        {
+          "event_line": 21,
+          "id": "item_10",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/WECHAT_STAGE_CLOSEOUT.md' -TotalCount 38; rg -n 'function broadcast|snapshot\\\\(|projectResults|sessionId|stateTimeout' server/src/main.ts; rg -n 'input\\\\(|step\\\\(|finished\\\\(|results\\\\(|snapshot\\\\(' tests/fixtures/module.ts; git symbolic-ref -q --short HEAD; git log -1 --format='%h %s'\"",
+          "exit_code": 0,
+          "output_sha256": "d2155d0b58880decd59a308fd559e6348d986231daa3d324b54863ec77bc505c"
+        },
+        {
+          "event_line": 22,
+          "id": "item_9",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'client/tests/cross_platform/entry.gd','client/tests/cross_platform/lifecycle.gd','client/tests/cross_platform/js_lifecycle_bridge.gd'; \"'$c=Get-Content -LiteralPath '\"'client/ui/main.gd'; for(\"'$i=300;$i -le 340;$i++){ '\"'{0}:{1}' -f \"'$i,$c[$i-1] }; for($i=388;$i -le 430;$i++){ '\"'{0}:{1}' -f \"'$i,$c[$i-1] }; rg -n '\"'acceptance-lifecycle|cross_platform/lifecycle|js_lifecycle_bridge|enable_timeline|submit_input' client scripts platform/wechat/acceptance-lifecycle.js -g '*.gd' -g '*.mjs' -g '*.tscn'\"",
+          "exit_code": 0,
+          "output_sha256": "5991350bfd4607b2215666107f10ebefd6d858c26147a5c50e8ecf17d5bd20a8"
+        },
+        {
+          "event_line": 24,
+          "id": "item_11",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'client/tests/cross_platform/lifecycle.gd'; \"'$c=Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$c[112..147]; $c[177..212]; Get-Content -LiteralPath '\"'docs/PROTOCOL.md' -TotalCount 24\"",
+          "exit_code": 0,
+          "output_sha256": "c4ad211f4555bcab9e3b022e7ec1a1972bb458708e89c127df28812e7f18b5c4"
+        }
+      ],
+      "answer_sha256": "624e10a50496cfffc7ed4e84aabd6557a01a62dec16ae8c06d29d16fd40af77e",
+      "events_sha256": "88a335a5c0464cebdefdb5a0fdf72d1b86b94541a781deefb34e3de75abb152f",
+      "elapsed_seconds": 84.1,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "explicit-with-skill-v2",
+      "case": "explicit",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7c782c3ed7a60572ecd83ecc62c33daf3acb310d8dda68b5119f823c8ff17747",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [
+        {
+          "line": 11,
+          "role": "user",
+          "body_matches_recorded_skill": true,
+          "text_sha256": "8ad0d6caede6858c4c5b44034ddd9e9bab5f9238c6448bec87e50200e2920913"
+        }
+      ],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Location; Get-Content .agents/skills/nakama-project-advisor/SKILL.md; Get-Content README.md; Get-Content docs/PROJECT_STATUS.md; Get-Content docs/ADDING_GAME.md; Get-Content docs/PROTOCOL.md; Get-Content docs/VALIDATION.md'",
+          "exit_code": 0,
+          "output_sha256": "0857dd69147b8311eef33eb9e9a0d05d751c6553cc0169369edc02b49a7d14d3"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Item -Force .git | Select-Object FullName,PSIsContainer; Get-Content .agents/skills/nakama-project-advisor/references/source-map.md; Get-Content .agents/skills/nakama-project-advisor/references/design-and-assets.md; Get-Content docs/PROJECT_STATUS.md'",
+          "exit_code": 0,
+          "output_sha256": "2716b60a09d560f3aa7a11ca7680539eb461d0044a091926d7b57b0d5178b587"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content docs/ADDING_GAME.md; Get-Content docs/WECHAT_STAGE_CLOSEOUT.md; rg --files -g AGENTS.md -g '*session*' -g '*timeline*' -g '*module*' -g '*registry*' -g '*wechat*' -g '*input*' client server platform\"",
+          "exit_code": 0,
+          "output_sha256": "81582e5fa62be4ed11510a84edd6a8ef25cf4d69f878b04971a047c512ca9eff"
+        },
+        {
+          "event_line": 11,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"git --no-optional-locks status --short; git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD; rg --files -g AGENTS.md -g '\"'!client/addons/**'\"' -g '\"'!.git/**'\"'; Get-Content server/src/types.ts; Get-Content server/src/registry.ts; Get-Content client/core/module_registry.gd; Get-Content client/core/game_module.gd; rg -n 'func (_process|submit_input|command_results)|input_interval|input_rate|INPUT|generation|epoch|background|focus|paused' client/core/session.gd; rg -n 'roomCapacity|minimumPlayers|matchJoinAttempt|matchLeave|snapshotAccumulator|configuredSnapshotRate|inputExpired|command_results|module.step|module.input|nextRound|host' server/src/main.ts\"",
+          "exit_code": 0,
+          "output_sha256": "4a49792db42cdd6d54d27c69ef9b1e821624f93913b1dc1d2fcda02a47ed7559"
+        },
+        {
+          "event_line": 15,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$s=Get-Content server/src/main.ts; $s[60..85]; $s[396..462]; $s[503..543]; $s[782..830]; $s[900..1026]; Get-Content tests/fixtures/module.ts; rg -n '\"'position|velocity|lerp|extrapolation' client/core/snapshot_timeline.gd; rg --files client/tests/cross_platform platform/wechat; Get-Content docs/ADDING_GAME.md -TotalCount 12; Get-Content docs/PROTOCOL.md -TotalCount 22; Get-Content docs/PROJECT_STATUS.md -Tail 8\"",
+          "exit_code": 0,
+          "output_sha256": "adaf95bf6f483632193eca2941c6667ab97dcef57a7b9da29f63a00e21de59ad"
+        },
+        {
+          "event_line": 16,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content AGENTS.md; $s=Get-Content client/core/session.gd; $s[85..137]; $s[425..465]; Get-Content platform/wechat/README.md; rg -n '\"'background|foreground|hide|show|logout|NOTIFICATION|clear|suspend' client/tests/cross_platform/test_session.gd client/tests/cross_platform/*.gd platform/wechat/* client/ui/main.gd; rg -n 'ModuleRegistry.create|release|continuous_input|input_provider|apply_snapshot|phase' client/ui/main.gd; rg -n 'submit_input|collect_input|enable_timeline|action_id' client/tests/fixture_view.gd client/tests/cross_platform/*; Get-Content client/project.godot\"",
+          "exit_code": 0,
+          "output_sha256": "175dfc5d04590b33f5e1ab573eee985ea93bcd36c9c3b3729f140ec25c34fa11"
+        },
+        {
+          "event_line": 18,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content client/tests/cross_platform/entry.gd -TotalCount 100; Get-Content client/tests/cross_platform/lifecycle.gd -TotalCount 190; rg -n 'submit_input|clear|collect_input|set_suspended' client/tests/cross_platform/cross_platform_view.gd client/tests/cross_platform/direction_pad.gd; rg -n 'onHide|onShow|hide|show' platform/wechat/acceptance-lifecycle.js client/tests/cross_platform/js_lifecycle_bridge.gd; rg -n 'sessionId|p.seq|p.round_id|commands.length|continuousFresh' server/src/main.ts; rg -n 'capacity|2, 9' client/ui/main.gd; git --no-optional-locks diff --stat; git log -1 --format='%h %s'; Get-Content client/export_presets.cfg | Select-String -Pattern 'exclude_filter|tests'\"",
+          "exit_code": 0,
+          "output_sha256": "06922620f051f48143226fb703cce00078297bc1f3471f1b7ce10717bfe8d2f6"
+        }
+      ],
+      "answer_sha256": "4a62aab3a072d2518db1b0e8b78c9cabe89c079c332e81dc67f9b427f59a3337",
+      "events_sha256": "c7bba4f8587f57d29f893a911c36deb765e5a586b14fd6d73de95305be4fa5f7",
+      "elapsed_seconds": 83.09,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "handoff-with-skill-matrix",
+      "case": "handoff",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "18a98c42c9ca01bac65c5ff72d4689aadc21b8fee424fea4b624aae5f681ed62",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'\"",
+          "exit_code": 0,
+          "output_sha256": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf"
+        },
+        {
+          "event_line": 7,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'README.md','docs/ADDING_GAME.md','docs/PROTOCOL.md','docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "611873127ea0c058b315e82c56c818623b573796524b79243fe926028a3a8f02"
+        },
+        {
+          "event_line": 11,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'\"",
+          "exit_code": 0,
+          "output_sha256": "784d34f00d1e260bdee6dcb77c87ccdd56149516c30be199f66bca40e6bbd2b2"
+        },
+        {
+          "event_line": 12,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md','docs/WECHAT_STAGE_CLOSEOUT.md'\"",
+          "exit_code": 0,
+          "output_sha256": "017f1eece3e4ef9f631c792aa308793d7c1e5f5aa955168feaf8eef1d83ea3b5"
+        },
+        {
+          "event_line": 13,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md','.agents/skills/nakama-project-advisor/references/design-and-assets.md'; Get-Item -Force -LiteralPath '.git' | Select-Object FullName,Mode; rg --files -g AGENTS.md -g '\"'!client/addons/**'\"' -g '\"'!*lock*'\"' -g '\"'!node_modules/**'\"' -g '\"'!.local/**'\"' -g '\"'!.git/**'\"'\"",
+          "exit_code": 0,
+          "output_sha256": "6741f33b3c645f9c7c9f6c3b36e5b9e264d05979b2d4c4747205836d4e8148ad"
+        },
+        {
+          "event_line": 17,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'matchJoinAttempt|phase \"'!==|inputExpired|command_results|sessionId|projectResults|module'\"\\\\.input|module\\\\.step|snapshotAccumulator|hostId|host_id' server/src/main.ts; rg --files client/tests/cross_platform platform/wechat\"",
+          "exit_code": 0,
+          "output_sha256": "997fc01ad6f3fbfe661bce2328f0735a8eb0df84ac98c2571f4a99fde64f7986"
+        },
+        {
+          "event_line": 18,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md','client/core/game_module.gd','client/core/module_registry.gd','server/src/registry.ts','server/src/types.ts'\"",
+          "exit_code": 0,
+          "output_sha256": "b05c32309bae58d1f1fb06e65dbf0284b3ab2f25f601da38eefbbc6d8606fa1b"
+        },
+        {
+          "event_line": 19,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"git --no-optional-locks status --short; git --no-optional-locks log -1 --format='%h %s'; git --no-optional-locks branch --show-current; rg -n 'func submit_input|command_results|func _process|input_provider|func .*logout|generation|room_epoch' client/core/session.gd; rg -n 'GameModule|release\\\\(|instantiate|phase.*playing|ModuleRegistry' client/ui/main.gd; rg -n 'diagnostic|clear.*input|release|suspend|resume|background' client/tests/cross_platform platform/wechat -g '*.gd' -g '*.js'\"",
+          "exit_code": 0,
+          "output_sha256": "1b7556837f6f5528a4e6f5f7782a71446fd7b0315b176f872a13d3825ec97b2c"
+        },
+        {
+          "event_line": 23,
+          "id": "item_10",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'client/core/session.gd'; \"'$c=Get-Content -LiteralPath $p; $c[432..465]; $p='\"'client/ui/main.gd'; \"'$c=Get-Content -LiteralPath $p; $c[311..350]; $c[389..408]; Get-Content -LiteralPath '\"'client/tests/cross_platform/lifecycle.gd'; \"'$c=Get-Content -LiteralPath '\"'client/tests/cross_platform/entry.gd'; \"'$c[0..75]; $c[257..275]; Get-Content -LiteralPath '\"'client/project.godot','platform/wechat/README.md'\"",
+          "exit_code": 0,
+          "output_sha256": "1bd047349d70b10184b62b63f1fca6a152a4c7bdb0dcca958c3aade6aaf49f53"
+        },
+        {
+          "event_line": 24,
+          "id": "item_11",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$c=Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$c[396..445]; $c[508..536]; $c[905..938]; $c[963..1018]; git --no-optional-locks log -1 --format='\"'%H%n%P%n%s'; rg -n '总体目标|Web浏览器|阶段收尾与|用户已明确|源码：|func submit_input|func _sync_diagnostic_controls|func enter_background|static var modules|var GAMES|func _ready|LIFECYCLE' docs/PROJECT_STATUS.md docs/WECHAT_STAGE_CLOSEOUT.md client/core/session.gd client/core/module_registry.gd server/src/registry.ts client/tests/cross_platform/entry.gd client/tests/cross_platform/lifecycle.gd\"",
+          "exit_code": 0,
+          "output_sha256": "1d9739d04be9206f8a4a130efc16faf7cd112bd4999c97bff1af5b6a511040b1"
+        }
+      ],
+      "answer_sha256": "60893198ac15c768def5e82caf2e556e4343af53847d6cce815e864266598deb",
+      "events_sha256": "83e8f97355b880a09d7b1de0325bcda3519c907b683c05c9ac9a36c3617b37e6",
+      "elapsed_seconds": 71.51,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "handoff-with-skill-v2",
+      "case": "handoff",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "18a98c42c9ca01bac65c5ff72d4689aadc21b8fee424fea4b624aae5f681ed62",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "a33b0b039382b725fe4d5033a88364bb5820ad6bc0d6a4bd11057b5bc832bae3"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath 'docs/WECHAT_STAGE_CLOSEOUT.md'\"",
+          "exit_code": 0,
+          "output_sha256": "017f1eece3e4ef9f631c792aa308793d7c1e5f5aa955168feaf8eef1d83ea3b5"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'; Get-Item -Force -LiteralPath '.git' | Select-Object FullName,Mode; rg --files -g AGENTS.md -g '*registry*' -g '*diagnostic*' -g '*touch*' -g '*game_module*' -g '*session*' -g '*types*' -g '*main*'\"",
+          "exit_code": 0,
+          "output_sha256": "8c1e00ec5f883bd77af97473c8ed33c4c0580f4fc8532fe2fb289662d57370b4"
+        },
+        {
+          "event_line": 12,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'func submit_input|command_results|func _process|func .*logout|generation|room_epoch|continuous_input' client/core/session.gd; rg -n 'func |Session\\\\.|touch|diagnostic|background|focus' client/tests/cross_platform/main.gd client/tests/cross_platform/test_session.gd client/tests/cross_platform/input_surface.gd; rg -n 'matchJoinAttempt|matchLeave|matchLoop|phase \"'!==|inputExpired|projectResults|minimumPlayers|roomCapacity|transferHost|cancelled_round'\"' server/src/main.ts; Get-Content -LiteralPath 'docs/ADDING_GAME.md'\"",
+          "exit_code": 0,
+          "output_sha256": "65a4559bc0967b899678c782ccaa16004af29bab172093529f73de867a408b4b"
+        },
+        {
+          "event_line": 13,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"git --no-optional-locks status --short; git log -1 --format='%H %s'; git branch --show-current; Get-Content -LiteralPath 'AGENTS.md'; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'; Get-Content -LiteralPath 'client/core/game_module.gd'; Get-Content -LiteralPath 'client/project.godot'\"",
+          "exit_code": 0,
+          "output_sha256": "a96bd0f2614260d66bdad8a9bce911415831e66d46657164a0e993a2004d9aaa"
+        },
+        {
+          "event_line": 17,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg --files client/tests/cross_platform; rg -n 'diagnostic|suspend|clear|logout|background|focus|register_module' client/tests/cross_platform client/ui/main.gd platform/wechat; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 85 -First 54; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 426 -First 38; rg -n 'ModuleRegistry.create|release|continuous_input|input_provider|playing' client/ui/main.gd; Get-Content -LiteralPath 'platform/wechat/README.md'\"",
+          "exit_code": 0,
+          "output_sha256": "80ece27361064e7e0a47c41fa02245fa8c5146634309ce84dd7ce00ba07126bb"
+        },
+        {
+          "event_line": 18,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 70 -First 20; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 396 -First 53; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 503 -First 39; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 790 -First 60; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 943 -First 90; git log -1 --format='%h %p %s'; git diff --stat 002bf6d HEAD -- client server platform scripts; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 20\"",
+          "exit_code": 0,
+          "output_sha256": "2913d21754bba87b963b76d53f2de77cd6e66f444538415e23e1779321929a70"
+        },
+        {
+          "event_line": 20,
+          "id": "item_9",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'client/tests/cross_platform/lifecycle.gd'; Get-Content -LiteralPath 'client/tests/cross_platform/entry.gd' -TotalCount 80; Get-Content -LiteralPath 'client/tests/cross_platform/entry.gd' | Select-Object -Skip 258 -First 20; Get-Content -LiteralPath 'client/tests/cross_platform/cross_platform_view.gd' | Select-Object -Skip 85 -First 75; Get-Content -LiteralPath 'client/ui/main.gd' | Select-Object -Skip 312 -First 32; Get-Content -LiteralPath 'client/Main.tscn' -TotalCount 20\"",
+          "exit_code": 0,
+          "output_sha256": "eee2fd4edb271b95a3bbf283fd9219e584394fd534be82e2bb91e0199bfdb8d4"
+        }
+      ],
+      "answer_sha256": "3c28ba45cea3ac48a418decb02e0f9cabf10e9a3196194eacae9b8a1aa25f884",
+      "events_sha256": "b968c587e689096e35968247ef25bd3c8022dfed5ad3216340bfc3b0fb558c3f",
+      "elapsed_seconds": 77.42,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "incomplete-with-skill-matrix",
+      "case": "incomplete",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7c71ee8436ff65f43a7d147361474c6c6641da2d0091cdbaca7d137400d3d4ea",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "144da0a735ceec63b7e4dc9d4ebecb6d272f23484588cab284bcbf7e63ea770b"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "37ec431cc3e41a6e20852e54099bdf99e72c3521d8b8a02c29d46d0ee3d68108"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'; Get-Content -LiteralPath 'client/core/game_module.gd'; if (Test-Path -LiteralPath '.git' -PathType Container) { git --no-optional-locks status --short; git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD } else { Write-Output 'No in-workspace .git directory; skipped Git metadata to avoid reading outside workspace.' }\"",
+          "exit_code": 0,
+          "output_sha256": "a77af4698c62dc38125e7f6f48c4fa01391bcf49a431b5b4801ee6c8f5c60c3b"
+        },
+        {
+          "event_line": 11,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'function (matchJoinAttempt|matchLeave|matchLoop|broadcast|snapshot|remove|next)|phase \"'!==|phase ===|host|module'\"\\\\.(input|step|leave|finished|results)|command_results|snapshotAccumulator' server/src/main.ts; rg -n 'func (submit_input|_process|_notification)|command_results|input_provider|send_match_state|round_id' client/core/session.gd; rg -n 'ModuleRegistry.create|apply_snapshot|release\\\\(|playing|submit_input|collect_input' client/ui/main.gd; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 24; Get-Content -LiteralPath 'docs/WECHAT_STAGE_CLOSEOUT.md' -TotalCount 60\"",
+          "exit_code": 0,
+          "output_sha256": "4e66bb7873503a8343e1849f16f4698d11b64e3d6ccdd199c8bfa3faf11c2691"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$server = Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$server[112..177]; $server[413..450]; $server[503..541]; $server[729..777]; $server[849..899]; $server[963..1019]; $session = Get-Content -LiteralPath '\"'client/core/session.gd'; \"'$session[424..464]; $ui = Get-Content -LiteralPath '\"'client/ui/main.gd'; \"'$ui[313..371]'",
+          "exit_code": 0,
+          "output_sha256": "8caa672b3bf5813d20e03f2159d8752c0fbd8ad00d365d699b1e041a4ecdca8d"
+        }
+      ],
+      "answer_sha256": "a5ae11dcda63784f33844d3fc5ce23548467e4cead8f7cc93ae699d06f0a7704",
+      "events_sha256": "4229d956723094fb404333d174651da1ee3c31383a2b11610a575775519c1f43",
+      "elapsed_seconds": 68.24,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "incomplete-with-skill-v2",
+      "case": "incomplete",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7c71ee8436ff65f43a7d147361474c6c6641da2d0091cdbaca7d137400d3d4ea",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "a33b0b039382b725fe4d5033a88364bb5820ad6bc0d6a4bd11057b5bc832bae3"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'; Get-Content -LiteralPath 'client/core/game_module.gd'\"",
+          "exit_code": 0,
+          "output_sha256": "6a28b3860dda7fa4fbae432f2807aadac7ff7d67f1902722306a54a9a9da41b1"
+        },
+        {
+          "event_line": 10,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "f6ea8e11ec55a97e8af785301d7e40ac9fe373d9d7ac92f510953390e78ecda2"
+        },
+        {
+          "event_line": 11,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Item -Force -LiteralPath '.git' -ErrorAction SilentlyContinue | Select-Object FullName,Attributes; rg --files -g AGENTS.md -g '*session*' -g '*timeline*' -g '*main*' -g '\"'!client/addons/**'\"' -g '\"'!.git/**'\"'\"",
+          "exit_code": 0,
+          "output_sha256": "1855b6ab25a61a9e95fe444614ffff289733b77165a6826c4ea75521717f6a01"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 18; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 1140 -First 260; rg -n -A 48 -B 8 'func submit_input' client/core/session.gd; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md' | Select-Object -Last 24\"",
+          "exit_code": 0,
+          "output_sha256": "fda6b7ffe0a3e9f5984650c2651629ecb77ea0331eee42a48e2c135c1ed716df"
+        },
+        {
+          "event_line": 15,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md'; git --no-optional-locks --git-dir=.git --work-tree=. status --short --branch; git --no-optional-locks --git-dir=.git --work-tree=. log -1 --format='%h %s'; rg -n 'func submit_input|func _process|func .*command|generation|epoch|func .*disconnect' client/core/session.gd; rg -n 'matchJoinAttempt|matchLeave|roomCapacity|minimumPlayers|function broadcast|function snapshot|module.leave|game.leave|state.phase|snapshotAccumulator|function.*[Hh]ost' server/src/main.ts; rg -n 'ModuleRegistry.create|apply_snapshot|release\\\\(|submit_input|set_input_provider|playing' client/ui/main.gd\"",
+          "exit_code": 0,
+          "output_sha256": "a0b0b9093e084e5ee15dfb2138d2f056d8763d4924aa1e8c8de1a6ad92208dda"
+        },
+        {
+          "event_line": 18,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 70 -First 142; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 396 -First 153; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 827 -First 195; Get-Content -LiteralPath 'client/ui/main.gd' | Select-Object -Skip 314 -First 84; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 575 -First 32\"",
+          "exit_code": 0,
+          "output_sha256": "8798c7ca557f0dc59025da2cba2e67733d98b9db1c4a94c7364ca3234f2773e2"
+        }
+      ],
+      "answer_sha256": "e7196e37ff858d357cfc43eb36204302978fa4d80e838f8c1bc320fb8d4df23c",
+      "events_sha256": "a71ca8fd6a94824e3f9f9a3c6afa796960e8dd0ff1a5af07f8461810a0ae92ef",
+      "elapsed_seconds": 77.63,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "private-turns-with-skill-matrix",
+      "case": "private-turns",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "cb712b688bc17dd79aceeb16d649db4d2daceb1122904f626371faa3139d6267",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "144da0a735ceec63b7e4dc9d4ebecb6d272f23484588cab284bcbf7e63ea770b"
+        },
+        {
+          "event_line": 8,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg --files -g AGENTS.md -g '*registry*' -g '*session*' -g '*main.ts' -g '*types.ts' -g '*game_module*'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'\"",
+          "exit_code": 0,
+          "output_sha256": "8f5154a4632d3737f3295531fb832871beff2d612c1b10ae9394890b3bd0939c"
+        },
+        {
+          "event_line": 9,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "37ec431cc3e41a6e20852e54099bdf99e72c3521d8b8a02c29d46d0ee3d68108"
+        },
+        {
+          "event_line": 11,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'snapshot\\\\(|projectResults|broadcastMessage|matchJoinAttempt|matchLeave|removeMember|submit_input|command_results|disconnect|background|foreground|onHide|onShow|minimumPlayers|capacity|commandQueue|module.input|input\\\\(' server/src/main.ts server/src/types.ts client/core/session.gd client/core/game_module.gd platform/wechat client/ui/main.gd; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'; Get-Content -LiteralPath 'server/src/types.ts'\"",
+          "exit_code": 0,
+          "output_sha256": "5367dd3229b9dc8806410fb90f8b31c47663311ba0e8cc3959aea9c272673da3"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'server/src/main.ts'; \"'$s=Get-Content -LiteralPath $p; foreach($r in @(@(72,88),@(113,212),@(396,445),@(503,541),@(700,804),@(900,967))){for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] }}; $p='\"'client/core/session.gd'; \"'$s=Get-Content -LiteralPath $p; foreach($r in @(@(425,460),@(570,650))){for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] }}; rg -n '\"'hide|show|suspend|resume|logout|leave_room|lifecycle' client/core client/tests/cross_platform platform/wechat/README.md; Get-Item -Force -LiteralPath '.git' -ErrorAction SilentlyContinue | Select-Object Name,PSIsContainer,LinkType\"",
+          "exit_code": 0,
+          "output_sha256": "f0c59fbc6e313e2cadad924591697ca6b0e6b298ec7f6a120a19f7fd289f2b97"
+        },
+        {
+          "event_line": 17,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'client/core/session.gd'; \"'$s=Get-Content -LiteralPath $p; foreach($r in @(@(433,456),@(580,628))){for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] }}; $p='\"'server/src/main.ts'; \"'$s=Get-Content -LiteralPath $p; for($i=888;$i -le 970;$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] }; Get-Content -LiteralPath '\"'client/tests/cross_platform/lifecycle.gd'; Get-Content -LiteralPath 'client/project.godot' -TotalCount 45\"",
+          "exit_code": 0,
+          "output_sha256": "3e0539969466a87ae97d846bc0934ac889376838d105d889f02e9f5bdf91b6f0"
+        },
+        {
+          "event_line": 18,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"git --no-optional-locks status --short; git rev-parse --show-toplevel; git rev-parse HEAD; git branch --show-current; rg --files -g AGENTS.md; Get-Content -LiteralPath 'docs/ADDING_GAME.md' | Select-Object -Skip 30\"",
+          "exit_code": 0,
+          "output_sha256": "c011438f2e59ec3ced34bb8cdc5ca13fec81657c4366788389f387da936a39f8"
+        },
+        {
+          "event_line": 20,
+          "id": "item_9",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md'; \"'$s=Get-Content -LiteralPath '\"'server/src/main.ts'; foreach(\"'$r in @(@(674,700),@(970,1018))){for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}: {1}' -f \"'$i,$s[$i-1] }}; Get-Content -LiteralPath '\"'client/core/game_module.gd' -TotalCount 65; Get-Content -LiteralPath 'client/ui/main.gd' | Select-Object -Skip 310 -First 73\"",
+          "exit_code": 0,
+          "output_sha256": "7ceadf2e9a89581912bc76422381e046ccc73f22b114979b6f225a8ab3981cf4"
+        }
+      ],
+      "answer_sha256": "fcc77292efa44e16c7f0ab9d74f18276faed57ba38b09fda2529c4965b6368d4",
+      "events_sha256": "b62d9e6ae4c2e60e960f5c5b8bf3da2e5901fe28d6c54fa04e9b93d15dbf3a31",
+      "elapsed_seconds": 85.67,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "private-turns-with-skill-v2",
+      "case": "private-turns",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "cb712b688bc17dd79aceeb16d649db4d2daceb1122904f626371faa3139d6267",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content .agents/skills/nakama-project-advisor/SKILL.md; Get-Content README.md; Get-Content docs/ADDING_GAME.md; Get-Content docs/PROTOCOL.md; Get-Content docs/VALIDATION.md'",
+          "exit_code": 0,
+          "output_sha256": "a33b0b039382b725fe4d5033a88364bb5820ad6bc0d6a4bd11057b5bc832bae3"
+        },
+        {
+          "event_line": 7,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content docs/PROJECT_STATUS.md; Get-Content .agents/skills/nakama-project-advisor/references/source-map.md; Get-Content .agents/skills/nakama-project-advisor/references/design-and-assets.md; Get-Content docs/ADDING_GAME.md'",
+          "exit_code": 0,
+          "output_sha256": "c8b61a47c1f7fd0dea0edf775ef0ea0bce86af00ca6f93b7e958f9933621cf2f"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Item -Force .git | Select-Object FullName,Attributes; rg -n \"snapshot|projectResults|matchLeave|matchJoinAttempt|removeMember|disconnect|command_results|validateInput|module.input|capacity|minPlayers|reconnect|resume\" server/src/main.ts server/src/types.ts client/core/session.gd client/ui/main.gd; Get-Content server/src/registry.ts; Get-Content client/core/module_registry.gd'",
+          "exit_code": 0,
+          "output_sha256": "1a93baf20257b21dc3d1f1b97da0df7a5ef4899a2d99d6aec3373226506e4f41"
+        },
+        {
+          "event_line": 13,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'git --no-optional-locks status --short; git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD'",
+          "exit_code": 0,
+          "output_sha256": "12f9876d04cd77c7b854f8103ad41452b47545be3c40b6e9be1ada85d71b0baa"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'client/core/session.gd'; \"'$s=Get-Content $p; foreach($r in @(@(125,138),@(390,422),@(433,458),@(574,634))) { for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] } }; rg -n \"background|foreground|onHide|onShow|suspend|resume|logout|disconnect\" platform/wechat client/core client/tests/cross_platform -g '\"'*.gd' -g '*.js' -g '*.md'\"",
+          "exit_code": 0,
+          "output_sha256": "4939e43eb60035eb7ddde2cc3bcf9c704b6fe9edbcd67adc471167d03f751340"
+        },
+        {
+          "event_line": 15,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'server/src/main.ts'; \"'$s=Get-Content $p; foreach($r in @(@(72,94),@(113,213),@(396,443),@(503,550),@(695,782),@(879,946),@(960,1017))) { for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] } }; Get-Content server/src/types.ts'",
+          "exit_code": 0,
+          "output_sha256": "fbdef52fae3596db5a7f1807c0ed5fb3c3ece02982b5b69977f77832556e34f8"
+        },
+        {
+          "event_line": 18,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content server/src/types.ts; $p='\"'server/src/main.ts'; \"'$s=Get-Content $p; foreach($r in @(@(679,695),@(896,946),@(956,1015))) { for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] } }; Get-Content client/tests/cross_platform/lifecycle.gd -TotalCount 60; Get-Content docs/PROTOCOL.md -TotalCount 20; rg -n \"private_note|projectResults|snapshot|sentinel\" tests/fixtures/module.ts tests/server-protocol.mjs; rg -n \"stay|results|release|next_round\" client/ui/main.gd'",
+          "exit_code": 0,
+          "output_sha256": "2ddbb07218cac03275ea802478e3894deb1ee145e26d9c25b41a15ff91ac6a80"
+        }
+      ],
+      "answer_sha256": "01a43d9bf13cf56ae27fcc6b7a3fd928294dc2d666c0946353278cf36bb49ff8",
+      "events_sha256": "7c40c8adc80406d0405db2e7bbb298b059b98c1fe9f5b058a8bc7f7d12f15651",
+      "elapsed_seconds": 69.61,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "private-turns-without-skill-matrix",
+      "case": "private-turns",
+      "group": "without-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "cb712b688bc17dd79aceeb16d649db4d2daceb1122904f626371faa3139d6267",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<without-skill>"
+        }
+      ],
+      "catalog_entries": [],
+      "explicit_injections": [],
+      "successful_body_reads": [],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content README.md, docs/ADDING_GAME.md, docs/PROTOCOL.md, docs/VALIDATION.md'",
+          "exit_code": 0,
+          "output_sha256": "611873127ea0c058b315e82c56c818623b573796524b79243fe926028a3a8f02"
+        },
+        {
+          "event_line": 7,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg --files -g '\"'!package-lock.json'\"' -g '\"'!*.svg'\"' -g '\"'!*.png'\"' -g '\"'!*.jpg'\"' -g '\"'!*.import'\"' -g '\"'!*.uid'\"' -g '\"'!*.sum'\"' -g '\"'!*.lock'\"' -g '\"'!vendor/**'\"' -g '\"'!node_modules/**'\"' -g '\"'!third_party/**'\"' -g '\"'!addons/**'\"' -g '\"'!*.tscn'\"' -g '\"'!*.tres'\"' -g '\"'!*.glb'\"' -g '\"'!*.wav'\"' -g '\"'!*.ogg'\"' -g '\"'!*.mp3'\"'\"",
+          "exit_code": 0,
+          "output_sha256": "3ecdf0402bb948348389600641c4b31210586f2eeb3298d0c2a3e8fd60ab2dd8"
+        },
+        {
+          "event_line": 11,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'rg -n \"reconnect|resume|background|foreground|disconnect|closed|submit_input|command_results|seq|pause|NOTIFICATION|application\" client/core/session.gd client/ui/main.gd client/tests/cross_platform/lifecycle.gd platform/wechat/acceptance-lifecycle.js; Get-Content docs/WECHAT_STAGE_CLOSEOUT.md'",
+          "exit_code": 0,
+          "output_sha256": "1f71021f4630848da10c278874cd0a446edb1abfa25fbac2df8e83245fa589fb"
+        },
+        {
+          "event_line": 12,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content AGENTS.md, server/src/types.ts, server/src/registry.ts, client/core/module_registry.gd; rg -n \\\"snapshot|projectResults|matchJoinAttempt|matchLeave|removeMember|commandResults|command_results|sessionId|minimumPlayers|capacity|module.input|input\\\\(\\\" server/src/main.ts\"",
+          "exit_code": 0,
+          "output_sha256": "65fd4793a82a3b2f29811fd869bdd03972a0114efe95c247a8b0467c2194a451"
+        },
+        {
+          "event_line": 13,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content docs/PROTOCOL.md'",
+          "exit_code": 0,
+          "output_sha256": "c63bf8a6e117d0fc861219b8f09622f1e55c36eb15b3d361da102743cb38436f"
+        },
+        {
+          "event_line": 15,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'server/src/main.ts'; \"'$s=Get-Content $p; foreach($r in @(@(72,88),@(113,209),@(396,446),@(503,540),@(724,800),@(890,958))){for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}' -f \"'$i,$s[$i-1] }}; Get-Content server/src/types.ts, server/src/registry.ts'",
+          "exit_code": 0,
+          "output_sha256": "cb740deb8a32ea1161ddb00089a88549ec100e0d3d7e7a7eac8ce856600a24ab"
+        },
+        {
+          "event_line": 17,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$s=Get-Content client/core/session.gd; foreach($r in @(@(433,452),@(577,605))){for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}' -f \"'$i,$s[$i-1] }}; Get-Content client/tests/cross_platform/lifecycle.gd | Select-Object -First 60; rg -n '\"'private|projectResults|snapshot|sent|payload' tests/fixtures/module.ts tests/server-protocol.mjs\"",
+          "exit_code": 0,
+          "output_sha256": "c9fd31a6dd0fb3de2aead7e33444c46d4bcc0e1e9cd81595a586b1cd6719950c"
+        }
+      ],
+      "answer_sha256": "ce44e4ebe62af94d829adeec5bf69f4121ad2907a9daa3e50efeb49e477aad3b",
+      "events_sha256": "fee36f9b87bea5bf1c55af7da1c5ba5b30bf7cfe62e8fa24a3b80663d1394c8a",
+      "elapsed_seconds": 60.72,
+      "skill_version": null
+    },
+    {
+      "run": "racing-with-skill-matrix",
+      "case": "racing",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7d2eb50a28ece548cd0e28cfd57b7a46f092bba0bae51d08a01e2b2e99117fcd",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "144da0a735ceec63b7e4dc9d4ebecb6d272f23484588cab284bcbf7e63ea770b"
+        },
+        {
+          "event_line": 9,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "37ec431cc3e41a6e20852e54099bdf99e72c3521d8b8a02c29d46d0ee3d68108"
+        },
+        {
+          "event_line": 10,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'; rg -n 'tickRate|snapshotRate|inputExpired|applied_input|stateInput|state_input|matchLoop|joinAttempt|sessionId|round_id' server/src/main.ts; Get-Content -LiteralPath 'server/src/types.ts'\"",
+          "exit_code": 0,
+          "output_sha256": "9c8976ec3477cafcc3cd14e89e3cddf97173ab61378beee814c3a4eeb5480b8b"
+        },
+        {
+          "event_line": 11,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Item -Force -LiteralPath '.git' | Select-Object FullName,Attributes; rg -n 'continuous|collect_input|timeline|interpol|predict|send_input|submit_input|INPUT|input_rate' client/core/session.gd client/core/game_module.gd client/core/snapshot_timeline.gd; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'\"",
+          "exit_code": 0,
+          "output_sha256": "4b066617b9fba4f61fdab8b3082fc237ea76fb8be5f32c07b7a43ba9d58eab47"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"git --no-optional-locks -c core.fsmonitor=false status --short; git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 72 -First 33; Get-Content -LiteralPath 'client/core/session.gd' | Select-Object -Skip 425 -First 50; Get-Content -LiteralPath 'client/core/game_module.gd'; rg -n -A 20 -B 3 'Vector2|position|velocity' client/core/snapshot_timeline.gd; rg -n -A 16 -B 3 'configuredSnapshotRate|snapshotAccumulator|inputExpired|module.step|s.phase \"'!== \"lobby\"'\"' server/src/main.ts; rg -n 'continuous_input|input_provider|apply_snapshot|ModuleRegistry.create|release' client/ui/main.gd; Get-Content -LiteralPath 'tests/fixtures/module.ts' | Select-Object -First 125\"",
+          "exit_code": 0,
+          "output_sha256": "9ebbb4b20559794b4ba2afe567ae9c8f36be828e29b91aa417a8f655a7fbd9fe"
+        },
+        {
+          "event_line": 16,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROTOCOL.md' | Select-Object -First 22; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 675 -First 105; Get-Content -LiteralPath 'server/src/main.ts' | Select-Object -Skip 965 -First 48; rg -n '后台|失焦|断|state_input|clear|neutral|NOTIFICATION' client/core/session.gd; Get-Content -LiteralPath 'docs/WECHAT_STAGE_CLOSEOUT.md' | Select-Object -First 58; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md' | Select-Object -Skip 32\"",
+          "exit_code": 0,
+          "output_sha256": "039798b2a62f384b27bcd4f46fc862fccc8ae2eecd115c55764503b36502bd6b"
+        }
+      ],
+      "answer_sha256": "6e1c2354d4ffe3350e8a2aabaca212153823348159153b9f6ad17f7b0f1ca95d",
+      "events_sha256": "c66e6289dc508b016f0456e86b81fa697453fa94fc59ec3f6735b965b7a2e9c0",
+      "elapsed_seconds": 72.1,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "racing-with-skill-v2",
+      "case": "racing",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7d2eb50a28ece548cd0e28cfd57b7a46f092bba0bae51d08a01e2b2e99117fcd",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "a33b0b039382b725fe4d5033a88364bb5820ad6bc0d6a4bd11057b5bc832bae3"
+        },
+        {
+          "event_line": 7,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; rg --files -g AGENTS.md -g '*timeline*' -g '*module*' -g '*session*'; Get-Item -Force -LiteralPath '.git' -ErrorAction SilentlyContinue\"",
+          "exit_code": 0,
+          "output_sha256": "38b6d9e67d377c3a0630610e4be1145f6df3b6a725c266e0fd6994f04c4395db"
+        },
+        {
+          "event_line": 10,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'configuredSnapshotRate|snapshotAccumulator|roomCapacity|minimumPlayers|inputExpired|module.step|module.input|pendingState|sessionId|matchLeave|phase \"'!==|phase ===|TICK_RATE'\"' server/src/main.ts; rg -n '\"'^func |INPUT|input_interval|input_accumulator|input_provider|applied_input|command_results'\"' client/core/session.gd; Get-Content -LiteralPath 'client/core/snapshot_timeline.gd'; rg -n 'timeline|apply_snapshot|collect_input|continuous_input|create_view' client/ui/main.gd; Get-Content -LiteralPath 'tests/fixtures/module.ts'\"",
+          "exit_code": 0,
+          "output_sha256": "0d725977906d613882f77622aa4a0de7d5a80f5c93e75c3cd4e1fd9152871477"
+        },
+        {
+          "event_line": 11,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md'; git --no-optional-locks status --short; git rev-parse --show-toplevel; git log -1 --format='%h %s'; git branch --show-current; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'client/core/game_module.gd'; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'\"",
+          "exit_code": 0,
+          "output_sha256": "6bf8cc7791b2b1e54252e370abe5deaeffa3fa95438f7d860eb7b9db17d9e550"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$s = Get-Content -LiteralPath '\"'client/core/session.gd'; \"'$s[90..123]; $s[423..465]; $m = Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$m[63..88]; $m[407..445]; $m[503..539]; $m[725..789]; $m[905..940]; $m[970..1020]; $u = Get-Content -LiteralPath '\"'client/ui/main.gd'; \"'$u[317..375]; Get-Content -LiteralPath '\"'docs/WECHAT_STAGE_CLOSEOUT.md' -TotalCount 65; rg -n 'pause|background|focus|neutral|input_provider|submit_input' platform/wechat client/tests/cross_platform -g '*.gd' -g '*.js'\"",
+          "exit_code": 0,
+          "output_sha256": "37eaadf43adc35e3f0e3dc88a77ea72052337cb0e9465adefc605688945b8d7d"
+        }
+      ],
+      "answer_sha256": "8a557901259f417635d3239d383bc706754b516ba81cdd6a694f9e6e33981e9d",
+      "events_sha256": "1140ef8bd3ab2470d58d4c11936c46c60d3ea63e48b1fcd5c5335f2d97040844",
+      "elapsed_seconds": 68.39,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "racing-without-skill",
+      "case": "racing",
+      "group": "without-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7d2eb50a28ece548cd0e28cfd57b7a46f092bba0bae51d08a01e2b2e99117fcd",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "read-only",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<without-skill>"
+        }
+      ],
+      "catalog_entries": [],
+      "explicit_injections": [],
+      "successful_body_reads": [],
+      "commands": [],
+      "answer_sha256": "74c0b1e3a942ac8c3e5129c258ff0fcb93638bb882870092fbd4a57bcc21c076",
+      "events_sha256": "c79e6e3aa46c4688f3f6e575a3e1829c0aedb92fb8140972ac7489c01af450ce",
+      "elapsed_seconds": 53.18,
+      "skill_version": null
+    },
+    {
+      "run": "racing-without-skill-matrix",
+      "case": "racing",
+      "group": "without-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "7d2eb50a28ece548cd0e28cfd57b7a46f092bba0bae51d08a01e2b2e99117fcd",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<without-skill>"
+        }
+      ],
+      "catalog_entries": [],
+      "explicit_injections": [],
+      "successful_body_reads": [],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content README.md, docs/ADDING_GAME.md, docs/PROTOCOL.md, docs/VALIDATION.md'",
+          "exit_code": 0,
+          "output_sha256": "611873127ea0c058b315e82c56c818623b573796524b79243fe926028a3a8f02"
+        },
+        {
+          "event_line": 7,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg --files -g AGENTS.md -g '*Session*' -g '*session*' -g '*race*' -g '*match*' -g '*registry*' -g '*project*' -g '*package*' -g '*go.mod*' -g '*tsconfig*'\"",
+          "exit_code": 0,
+          "output_sha256": "659d67954a9310a20ce6688ee0463b97962374a56c6f8a27da9727c8c18c92fc"
+        },
+        {
+          "event_line": 12,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content '<USER_HOME>/.codex/skills/wechatide-skill/SKILL.md'\"",
+          "exit_code": 0,
+          "output_sha256": "ca52735c502cee495380eae4ba2679931320d5c326c077c1b11fa90930578805"
+        },
+        {
+          "event_line": 13,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content docs/PROTOCOL.md -TotalCount 30; Get-Content docs/SNAPSHOT_TIMELINE.md, docs/WECHAT_STAGE_CLOSEOUT.md; rg --files client/core evaluation-input'",
+          "exit_code": 0,
+          "output_sha256": "5aa30a6b8c4f503e96e95345743afef0befcb53293371eb149224dc1efe35d07"
+        },
+        {
+          "event_line": 14,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content AGENTS.md; Get-Content server/src/types.ts, client/core/game_module.gd, server/src/registry.ts, client/core/module_registry.gd; rg --files evaluation-input; rg -n 'TICK_RATE|SNAPSHOT|tickRate|snapshotRate|step\\\\(|sessionId|inputExpired' server/src/main.ts; rg -n 'prediction|reconcil|timeline|interpol|input_rate|INPUT_|collect_input|submit_input|client_tick' client/core client/ui/main.gd\"",
+          "exit_code": 0,
+          "output_sha256": "636a00b7432e93989ea5178d87992d4b0052ac85f9fb0ad6031b46fa46b5c8e5"
+        },
+        {
+          "event_line": 17,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n '30|submit_input|client_tick|collect_input|350|state_fresh|input_receipts' client/core/session.gd; rg -n 'position|velocity|angle|Vector|predict|replay' client/core/snapshot_timeline.gd; Get-Content client/core/module_registry.gd; Get-Content docs/PROTOCOL.md -TotalCount 22\"",
+          "exit_code": 0,
+          "output_sha256": "454723a09a1f86faa3826c517f23f69bdab448a3dbac2ee3fba3915d95ae7dce"
+        },
+        {
+          "event_line": 18,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content evaluation-input/vehicle-demo/car.gd, evaluation-input/vehicle-demo/demo_net.gd, evaluation-input/vehicle-demo/project.godot, evaluation-input/vehicle-demo/native/vehicle.gdextension, evaluation-input/vehicle-demo/ASSET_NOTE.txt, evaluation-input/vehicle-demo/addons/vehicle_tools/plugin.cfg; Get-Content server/tsconfig.json; rg -n 'TICK_RATE|snapshotRate|snapshot_rate|SNAPSHOT|sessionId|module.step|inputExpired' server/src/main.ts\"",
+          "exit_code": 0,
+          "output_sha256": "8bab6a713deaa53b276c2cd0ba2cf901b356b397206e4ce2fb8dca148adb0116"
+        },
+        {
+          "event_line": 21,
+          "id": "item_9",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$lines = Get-Content server/src/main.ts; $lines[66..80]; $lines[879..937]; $lines[976..1020]'",
+          "exit_code": 0,
+          "output_sha256": "a619849eb4bdb59c33d03629b774146b7f13ff566d609490f7c0c1340c56e46c"
+        },
+        {
+          "event_line": 22,
+          "id": "item_10",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$lines = Get-Content client/core/session.gd; $lines[80..119]; $lines[425..449]; Get-Content tests/fixtures/module.ts -TotalCount 115'",
+          "exit_code": 0,
+          "output_sha256": "33bb1076d24b020ec22588ac3ca39eca7ed0aeda8df4ec5f0d3f1d868f4f66b7"
+        }
+      ],
+      "answer_sha256": "62db3f4c36f6d2ec276a44ce772807c616d34d629fd9d973a67b276291e6f337",
+      "events_sha256": "f4537fd6a12d9a8800d9c189a74e82e0096cc92e337df1bd2b05d3a781d29579",
+      "elapsed_seconds": 64.54,
+      "skill_version": null
+    },
+    {
+      "run": "shooting-with-skill-matrix",
+      "case": "shooting",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "e538978aa9dde9497e683fc834e1d2f2793a4b8b0fdfd9887cf809af31e92a48",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "144da0a735ceec63b7e4dc9d4ebecb6d272f23484588cab284bcbf7e63ea770b"
+        },
+        {
+          "event_line": 7,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'\"",
+          "exit_code": 0,
+          "output_sha256": "b051b10d350142884b339e9b741150d829c27e190a91111750b53d937390ad8f"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"git --no-optional-locks status --short; git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD; rg --files -g AGENTS.md -g '*timeline*' -g '*input*' -g '*module*' -g '*registry*' -g '*wechat*'\"",
+          "exit_code": 0,
+          "output_sha256": "37d3128b335bd5655c173aeb54024b143a12994941bb6d504ef9c0476ff93fbd"
+        },
+        {
+          "event_line": 11,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md'; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'client/core/game_module.gd'; Get-Content -LiteralPath 'client/core/module_registry.gd'; Get-Content -LiteralPath 'server/src/registry.ts'; rg -n 'func (_process|submit_input)|input_interval|input_rate|command_results|set_input_provider|client_tick|_input_seq' client/core/session.gd; rg -n 'TICK_RATE|snapshotAccumulator|configuredSnapshotRate|inputExpired|commandQueue|applied_input|matchLeave|matchJoinAttempt|module.step|module.input|phase \"'!==|sessionId'\"' server/src/main.ts; rg -n 'interpol|extrapol|delay|position|velocity|func ' client/core/snapshot_timeline.gd; rg -n 'timeline|collect_input|configure|release|playing|input_provider' client/ui/main.gd; Get-Content -LiteralPath 'platform/wechat/README.md'\"",
+          "exit_code": 0,
+          "output_sha256": "975e912e5bbe34e793aabf85d6586ced7e0cb72a766eb2dc02f88e101a592dc3"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$s = Get-Content -LiteralPath '\"'client/core/session.gd'; \"'$s[75..115]; $s[425..452]; $s[518..560]; $m = Get-Content -LiteralPath '\"'server/src/main.ts'; \"'$m[60..83]; $m[396..444]; $m[503..535]; $m[700..781]; $m[904..1022]; $u = Get-Content -LiteralPath '\"'client/ui/main.gd'; \"'$u[315..346]; rg -n '\"'focus|background|foreground|pause|neutral|clear|submit_input|enable_timeline' client/tests/cross_platform platform/wechat client/core; Get-Content -LiteralPath 'docs/WECHAT_STAGE_CLOSEOUT.md' -TotalCount 65; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 23\"",
+          "exit_code": 0,
+          "output_sha256": "ef7ed779825f5cb935cad98a523b65781a5d0f6c4b2eb144c18248dcd2b1e4e0"
+        },
+        {
+          "event_line": 16,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'client/tests/cross_platform/lifecycle.gd'; rg -n 'predict|reconcil|rewind|lag.comp|shot|bullet|hit.scan' client/core server/src; \"'$u = Get-Content -LiteralPath '\"'client/ui/main.gd'; \"'$u[320..344]; rg -n '\"'stateTimeout|inputWindow|function snapshot|function broadcast' server/src/main.ts; Get-Content -LiteralPath 'client/tests/cross_platform/entry.gd' -TotalCount 55\"",
+          "exit_code": 0,
+          "output_sha256": "7d0ef812c5f6fa3d44fb10b63f07092e4907b28ba476ac4fba4e1fcf403b3349"
+        }
+      ],
+      "answer_sha256": "4440a7a2068d154f8e78c53c6aedc7e7423b5268bbac5e5ab6d6b21d867cb395",
+      "events_sha256": "149ecd75bca0c58b08f47b256f0756d4a99036c11f7e92c6fe040e9dcc8cd0f8",
+      "elapsed_seconds": 74.59,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "shooting-with-skill-v2",
+      "case": "shooting",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "e538978aa9dde9497e683fc834e1d2f2793a4b8b0fdfd9887cf809af31e92a48",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 7,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 7,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'\"",
+          "exit_code": 0,
+          "output_sha256": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "611873127ea0c058b315e82c56c818623b573796524b79243fe926028a3a8f02"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg --files -g AGENTS.md -g project.godot -g package.json -g '*session*' -g '*Session*' -g '*registry*' -g '*Registry*' -g '*wechat*' -g '*WeChat*' -g '*match*' -g '*shooter*' -g '*shoot*'\"",
+          "exit_code": 0,
+          "output_sha256": "298e58d1a299df2af7bf470d5edf9566c4c4d07aac5416e8555f212dc8595b68"
+        },
+        {
+          "event_line": 13,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md' -TotalCount 28; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'client/core/game_module.gd'; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'\"",
+          "exit_code": 0,
+          "output_sha256": "bed0bfb582a88740332d41379dfb0a5e74815c5055f859b4608b11ce4212e4a8"
+        },
+        {
+          "event_line": 14,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'; Get-Item -Force -LiteralPath '.git' -ErrorAction SilentlyContinue | Select-Object Name,Attributes\"",
+          "exit_code": 0,
+          "output_sha256": "08cdf7e3e9422b62fe90fc8b09ba19767399e320a67d60a5507de0a18a8155d3"
+        },
+        {
+          "event_line": 15,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'tickRate|snapshot|SNAPSHOT|INPUT|inputExpired|matchLeave|playing|finish|sessionId' server/src/main.ts; rg -n 'func |INPUT|input_|timeline|background|focus' client/core/session.gd; rg --files client/core platform/wechat\"",
+          "exit_code": 0,
+          "output_sha256": "a4508b784c48e925de4bbbd632c83997145d4d439df23e24346d8cbade65a2ed"
+        },
+        {
+          "event_line": 18,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$paths = @('\"'server/src/main.ts','client/core/session.gd','client/core/snapshot_timeline.gd','client/ui/main.gd'); \"'$ranges = @(@(60,85,300,340,400,445,503,535,900,935,970,1023),@(93,137,423,465),@(1,95),@(1,1)); for ($j=0; $j -lt $paths.Count; $j++) { $lines=Get-Content -LiteralPath $paths[$j]; Write-Output $paths[$j]; for ($r=0; $r -lt $ranges[$j].Count; $r+=2) { for($n=$ranges[$j][$r]; $n -le $ranges[$j][$r+1]; $n++){ '\"'{0}: {1}' -f \"'$n,$lines[$n-1] } } }; rg -n '\"'ModuleRegistry|continuous_input|input_provider|release\\\\(' client/ui/main.gd; Get-Content -LiteralPath 'platform/wechat/README.md'; rg -n 'hide|show|clear|focus|pause|Session|input_provider|register_module' platform/wechat/acceptance-lifecycle.js client/tests/cross_platform/*.gd; Test-Path -LiteralPath '.git'\"",
+          "exit_code": 0,
+          "output_sha256": "aa495c7b887cee920a02bc4b4e7d5e66d6b79e7704b520c493281ad3ecbcdcc0"
+        },
+        {
+          "event_line": 20,
+          "id": "item_9",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Item -Force -LiteralPath '.git' | Select-Object Name,Attributes,LinkType; Get-Content -LiteralPath 'docs/ADDING_GAME.md' | Select-Object -Skip 25; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md' | Select-Object -Skip 35; rg -n 'hide|show|clear|focus|pause|Session|input_provider|register_module' client/tests/cross_platform -g '*.gd'; Get-Content -LiteralPath 'docs/WECHAT_STAGE_CLOSEOUT.md' -TotalCount 48; Get-Content -LiteralPath 'AGENTS.md'\"",
+          "exit_code": 0,
+          "output_sha256": "5361075c252ff2401d6737d24489e001f2766c63dd9fe1e89ebe729cc0d9e304"
+        },
+        {
+          "event_line": 22,
+          "id": "item_10",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$gitEntry = Get-Item -Force -LiteralPath '\"'.git'; Write-Output ('git entry attributes: ' + \"'$gitEntry.Attributes); if (-not $gitEntry.PSIsContainer) { Get-Content -LiteralPath '\"'.git' }; Get-Content -LiteralPath 'client/tests/cross_platform/lifecycle.gd' -TotalCount 90; Get-Content -LiteralPath 'docs/ADDING_GAME.md' | Select-Object -Skip 29 -First 18; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md' | Select-Object -Skip 20 -First 18\"",
+          "exit_code": 0,
+          "output_sha256": "78c14279145025652cdde8a7066b64dc4536d51e64bfaac0d7cc955fcbe90ffd"
+        },
+        {
+          "event_line": 24,
+          "id": "item_11",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$headText = Get-Content -LiteralPath '\"'.git/HEAD'; Write-Output \"'$headText; if ($headText -match '\"'\"'^ref: (refs/[a-zA-Z0-9/_-]+)$'\"') { \"'$refPath=Join-Path '\"'.git' \"'$Matches[1]; if (Test-Path -LiteralPath $refPath) { Get-Content -LiteralPath $refPath } }; rg -n '\"'predict|rewind|lag.compensation|replay' client/core server/src\"",
+          "exit_code": 0,
+          "output_sha256": "e0126de0494a4d172a336acac71b9811e2e0c4a52fa433d0f88ccde13345ae78"
+        }
+      ],
+      "answer_sha256": "0533c87345b0d345bd9470f3ec14de9c476a1ca7fbc8e80efd0497339dd9f53f",
+      "events_sha256": "e4ddfba846564a445c71032a4644622b2bdb2a60804db49c12dab28186aa1dd2",
+      "elapsed_seconds": 95.34,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    },
+    {
+      "run": "shooting-without-skill-matrix",
+      "case": "shooting",
+      "group": "without-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "e538978aa9dde9497e683fc834e1d2f2793a4b8b0fdfd9887cf809af31e92a48",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<without-skill>"
+        }
+      ],
+      "catalog_entries": [],
+      "explicit_injections": [],
+      "successful_body_reads": [],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content -LiteralPath README.md,docs/ADDING_GAME.md,docs/PROTOCOL.md,docs/VALIDATION.md'",
+          "exit_code": 0,
+          "output_sha256": "611873127ea0c058b315e82c56c818623b573796524b79243fe926028a3a8f02"
+        },
+        {
+          "event_line": 7,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg --files -g '\"'!*.lock'\"' -g '\"'!vendor/**'\"' -g '\"'!third_party/**'\"' -g '\"'!node_modules/**'\"' -g '\"'!'\"\\\\.local/**' -g 'AGENTS.md' -g '*Session*' -g '*session*' -g '*match*' -g '*registry*' -g '*project*' -g '*wechat*' -g '*test*' -g '*export*' -g 'package.json'\"",
+          "exit_code": 0,
+          "output_sha256": "1c0d0703b0266e6164d03109a385dfd75eb651d6d3a7578bfc2403c0aa488ea7"
+        },
+        {
+          "event_line": 12,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content -LiteralPath docs/SNAPSHOT_TIMELINE.md,docs/WECHAT_STAGE_CLOSEOUT.md,platform/wechat/README.md; rg --files client/core client/tests platform/wechat server/src'",
+          "exit_code": 0,
+          "output_sha256": "aaf4444ece1316a561e132e2e25be3dc91e7305d995adc0ad6c037f2a57d459b"
+        },
+        {
+          "event_line": 13,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath AGENTS.md,server/src/types.ts,server/src/registry.ts,client/core/module_registry.gd,client/core/game_module.gd; rg -n 'tickRate|tick_rate|snapshotRate|snapshot_rate|60|256|client_tick|inputExpired|module.step|stateInput|commandQueue' server/src/main.ts; rg -n 'continuous|collect_input|submit_input|client_tick|timeline|prediction|interpol|extrapol|INPUT|input_interval' client/core/session.gd client/core/snapshot_timeline.gd client/ui/main.gd\"",
+          "exit_code": 0,
+          "output_sha256": "9f52864b9955c034278513c1fc4bf101feb11f0e85b59c4d1563f0dea9ca834d"
+        },
+        {
+          "event_line": 14,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '<USER_HOME>/.codex/skills/wechatide-skill/SKILL.md'\"",
+          "exit_code": 0,
+          "output_sha256": "ca52735c502cee495380eae4ba2679931320d5c326c077c1b11fa90930578805"
+        },
+        {
+          "event_line": 16,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n -C 3 'func submit_input|func _process|collect_input|client_tick|INPUT_INTERVAL|350|1.0 / 30' client/core/session.gd; rg -n -C 2 '256|snapshotRate|snapshot_rate|TICK_RATE|module.step|game.step|inputExpired|commands.length|commandQueue' server/src/main.ts; Get-Content -LiteralPath client/core/snapshot_timeline.gd -TotalCount 85; Get-Content -LiteralPath client/tests/cross_platform/cross_platform_view.gd -TotalCount 105\"",
+          "exit_code": 0,
+          "output_sha256": "76c4ebe4bad190461b28b25ba04b07679deea054a87302f90e1e252b9a6f31bf"
+        },
+        {
+          "event_line": 18,
+          "id": "item_8",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath docs/PROTOCOL.md -TotalCount 32; Get-Content -LiteralPath server/src/main.ts | Select-Object -Skip 898 -First 108; rg -n 'configuredSnapshotRate|return 20|capacity|minimumPlayers' server/src/main.ts; rg -n 'prediction|rewind|rollback|reconcil|raycast|bullet|hitbox' client/core server/src\"",
+          "exit_code": 0,
+          "output_sha256": "e43a62ab7e38ccab522510861bae245f59156dd9f10d6048976de1d27d5a731c"
+        }
+      ],
+      "answer_sha256": "e60eb1ed790bc1c0646cc0380fa7e5568e4ebd678ac5a0d47e76213402e0198d",
+      "events_sha256": "7287536c1c0fc62457208cb4374dfa843846528cc95db9ec11ba8d77e8ea1a2e",
+      "elapsed_seconds": 66.22,
+      "skill_version": null
+    },
+    {
+      "run": "unsupported-with-skill-matrix",
+      "case": "unsupported",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "3acc0bb43d3952ce69c018d1e927f90eb9a39f6c1e06f4ffda7d18f7e4ad7d65",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/SKILL.md'; Get-Content -LiteralPath 'README.md'; Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'docs/PROTOCOL.md'; Get-Content -LiteralPath 'docs/VALIDATION.md'\"",
+          "exit_code": 0,
+          "output_sha256": "144da0a735ceec63b7e4dc9d4ebecb6d272f23484588cab284bcbf7e63ea770b"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/ADDING_GAME.md'; Get-Content -LiteralPath 'server/src/types.ts'; Get-Content -LiteralPath 'client/core/game_module.gd'; Get-Content -LiteralPath 'server/src/registry.ts'; Get-Content -LiteralPath 'client/core/module_registry.gd'\"",
+          "exit_code": 0,
+          "output_sha256": "7ead26904419beb771b5c750a49cde93ca0b060f689413cd774aa0d88197a8df"
+        },
+        {
+          "event_line": 10,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'docs/PROJECT_STATUS.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/source-map.md'; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md'\"",
+          "exit_code": 0,
+          "output_sha256": "37ec431cc3e41a6e20852e54099bdf99e72c3521d8b8a02c29d46d0ee3d68108"
+        },
+        {
+          "event_line": 11,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'snapshot_rate|snapshotRate|matchLeave|matchJoinAttempt|sessionId|command_results|commandResults|inputReceipts|broadcastSnapshot|inputExpired|TICK_RATE|INPUT_RATE|disconnect|reconnect|input_rate|send_rate|submit_input|collect_input|continuous_input|timeline|retry|wallet|purchase|rewind' server/src client/core client/ui; rg --files -g AGENTS.md -g '\"'!client/addons/**'\"' -g '\"'!node_modules/**'\"' -g '\"'!.git/**'\"'; git --no-optional-locks status --short; git rev-parse --show-prefix; git branch --show-current; git rev-parse HEAD\"",
+          "exit_code": 0,
+          "output_sha256": "9e22a914dccbcb2eb864b88a7a2eb91055790a0be45c843a9dbbe02f3790bcbf"
+        },
+        {
+          "event_line": 13,
+          "id": "item_5",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'server/src/main.ts'; \"'$s=Get-Content -LiteralPath $p; foreach($r in @(@(55,80),@(110,210),@(396,453),@(503,534),@(680,810),@(899,949),@(950,1030))){for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] }}; $p='\"'client/core/session.gd'; \"'$s=Get-Content -LiteralPath $p; foreach($r in @(@(78,105),@(400,461),@(570,632))){for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$s[$i-1] }}'",
+          "exit_code": 0,
+          "output_sha256": "8fd20034e10a9cae61b11cf046bdc64e23726cf082eb07243400477d891c0fac"
+        },
+        {
+          "event_line": 16,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content -LiteralPath 'AGENTS.md'; rg --files server/src client/core; rg -n 'history|rewind|purchase|wallet|registerRpc|storageWrite|registerMatch|inputWindow:|stateTimeout:' server/src; rg -n 'Vector2|position|velocity|func sample|func push_snapshot' client/core/snapshot_timeline.gd; Get-Content -LiteralPath 'docs/ADDING_GAME.md' | Select-Object -Skip 30 -First 20; Get-Content -LiteralPath 'docs/PROTOCOL.md' | Select-Object -First 17; Get-Content -LiteralPath '.agents/skills/nakama-project-advisor/references/design-and-assets.md' | Select-Object -Last 10\"",
+          "exit_code": 0,
+          "output_sha256": "d8a995dc6f20f2d765044670886779b011563faf86a1e5c54a70b7e55b6851ca"
+        }
+      ],
+      "answer_sha256": "fc12517a9cac758b3d6acaa04768f53ea74909dcf81f8294cb7686bb42fb27df",
+      "events_sha256": "b3013f1bb6819393a41a180e9fdc8d980d3dd0225e0f5fb0a12b62524d1c2e94",
+      "elapsed_seconds": 68.08,
+      "skill_version": {
+        "capture": "after frozen first matrix, before any skill edits; matching body checked against original tool output/injection",
+        "files": {
+          "SKILL.md": "68862d2bf740b06d1aa9d6c3502e49e675c98a0890932af68d77fa76bf478ccf",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "36125929411ed30a1922ffce304686e00f554212c03a993e6349e33028ccfc9b",
+          "references\\source-map.md": "e5b4753f7ac6abf57fb5931388ae477a8beba54e4d4be385a1109aff7d482ade"
+        }
+      }
+    },
+    {
+      "run": "unsupported-with-skill-v2",
+      "case": "unsupported",
+      "group": "with-skill",
+      "exit_code": 0,
+      "baseline": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+      "prompt_sha256": "3acc0bb43d3952ce69c018d1e927f90eb9a39f6c1e06f4ffda7d18f7e4ad7d65",
+      "model_requested": "gpt-6-astra",
+      "effort_requested": "model_reasoning_effort=\"high\"",
+      "sandbox": "danger-full-access",
+      "contexts": [
+        {
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "reasoning_effort": null,
+          "cwd": "<with-skill>"
+        }
+      ],
+      "catalog_entries": [
+        {
+          "line": 3,
+          "role": "developer"
+        }
+      ],
+      "explicit_injections": [],
+      "successful_body_reads": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "full_recorded_body_in_tool_output": true
+        }
+      ],
+      "commands": [
+        {
+          "event_line": 5,
+          "id": "item_1",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content .agents/skills/nakama-project-advisor/SKILL.md; Get-Content README.md; Get-Content docs/ADDING_GAME.md; Get-Content docs/PROTOCOL.md; Get-Content docs/VALIDATION.md'",
+          "exit_code": 0,
+          "output_sha256": "a33b0b039382b725fe4d5033a88364bb5820ad6bc0d6a4bd11057b5bc832bae3"
+        },
+        {
+          "event_line": 8,
+          "id": "item_2",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'Get-Content docs/PROJECT_STATUS.md; Get-Content .agents/skills/nakama-project-advisor/references/source-map.md; Get-Content .agents/skills/nakama-project-advisor/references/design-and-assets.md'",
+          "exit_code": 0,
+          "output_sha256": "f6ea8e11ec55a97e8af785301d7e40ac9fe373d9d7ac92f510953390e78ecda2"
+        },
+        {
+          "event_line": 9,
+          "id": "item_3",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content docs/ADDING_GAME.md; Get-Content server/src/types.ts; Get-Content client/core/game_module.gd; rg -n 'snapshot_rate|snapshotRate|TICK_RATE|matchJoinAttempt|matchLeave|removeMember|command_results|input_receipts|client_tick|storage|wallet|reconnect|retry|input_interval|input_rate|continuous_input' server/src client/core client/ui/main.gd; Get-Item -Force .git -ErrorAction SilentlyContinue\"",
+          "exit_code": 0,
+          "output_sha256": "0ea6162389d1d7e7b2e1a91a1fd008f52d2846e8b0a9c2486386041efc8917f8"
+        },
+        {
+          "event_line": 11,
+          "id": "item_4",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command 'git --no-optional-locks status --short; git rev-parse --short HEAD; git branch --show-current; $p='\"'server/src/main.ts'; \"'$a=Get-Content $p; foreach($r in @(@(80,115),@(175,240),@(350,435),@(495,535),@(880,945),@(1000,1035))){ for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$a[$i-1] }}; $p='\"'client/core/session.gd'; \"'$a=Get-Content $p; foreach($r in @(@(60,110),@(410,465),@(580,615))){ for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$a[$i-1] }}; rg -n '\"'func _process|_input|session_id|sessionId|function configuredSnapshot|function remove|delete s.members|empty|wallet|purchase|rewind|lag.compens' server/src/main.ts client/core/session.gd server/src/types.ts; Get-Content server/src/registry.ts; Get-Content client/core/module_registry.gd\"",
+          "exit_code": 0,
+          "output_sha256": "73fd2c5a0cea678fdcaf5b289f4fcb8b0cf6a005c87ca9a620fa085aa133f060"
+        },
+        {
+          "event_line": 14,
+          "id": "item_6",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$p='\"'server/src/main.ts'; \"'$a=Get-Content $p; foreach($r in @(@(60,75),@(545,600),@(675,685),@(725,785),@(906,965),@(1008,1028))){ for($i=$r[0];$i -le $r[1];$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$a[$i-1] }}; $p='\"'client/ui/main.gd'; \"'$a=Get-Content $p; for($i=320;$i -le 355;$i++){ '\"'{0}:{1}: {2}' -f \"'$p,$i,$a[$i-1] }; rg -n '\"'Vector2|position|velocity|func |history|rewind' client/core/snapshot_timeline.gd; rg -n 'wallet|purchase|rewind|lag.compens|registerRpc|storageWrite' server/src; Get-Content docs/PROTOCOL.md -TotalCount 18; Get-Content .agents/skills/nakama-project-advisor/references/design-and-assets.md -Tail 17\"",
+          "exit_code": 0,
+          "output_sha256": "6de041a1c99a3db1cd7566e9d417507d04efe4405a8138f9040df80ff73bc3c5"
+        },
+        {
+          "event_line": 16,
+          "id": "item_7",
+          "command": "\"<USER_HOME>\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$a=Get-Content server/src/main.ts; for($i=915;$i -le 940;$i++){ '\"'{0}: {1}' -f \"'$i,$a[$i-1] }; for($i=970;$i -le 998;$i++){ '\"'{0}: {1}' -f \"'$i,$a[$i-1] }; Get-Content client/core/session.gd | Select-Object -Skip 92 -First 7'",
+          "exit_code": 0,
+          "output_sha256": "5bf6ae55f60e4a9239e3fcd8d977943de91360e83bb07d679ddfb6e667d440a6"
+        }
+      ],
+      "answer_sha256": "20caa38ac89a7b63c79a2eefb6ed4cac62c9bd6f4960caddf72c625d8320f78e",
+      "events_sha256": "7c7ae8e032d9a300a152e71389e85b1fbb3904dfb5cf8c218383ab456b1d0c3d",
+      "elapsed_seconds": 83.24,
+      "skill_version": {
+        "capture": "before session launch",
+        "files": {
+          "SKILL.md": "c4c47b3c734ead79068d60540f5f64897ca0ec8f726bf045e97ca9fcd32b4909",
+          "agents\\openai.yaml": "ac6de0e9aa70b81b05b1ff9ed8f94b5335d30e4b71aa7ecffcedf20238b1af72",
+          "references\\design-and-assets.md": "a6c434ab38d839786e53c8d9386eed06ceb9f4bf030d83061aa5aee1abdafb60",
+          "references\\source-map.md": "589ad976afcce7a14b21a5b140db63b9df71cd31f3773e912b39b9a2103d203c"
+        }
+      }
+    }
+  ],
+  "isolation": {
+    "tracked_files_identical": true,
+    "fixtures_identical": true,
+    "manifests": {
+      "with-skill": {
+        "head": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+        "status": "?? .agents/\n?? evaluation-input/\n",
+        "tracked_count": 204,
+        "tracked_manifest_sha256": "2031abc02732afa524e832481edfb062379e7f60cd5fde7b58889ac6fd87e7d6",
+        "entry_docs": {
+          "AGENTS.md": "4b6189160ecc5a7eb0f5f1b2a361c5571aa802af3bbfc162a8b84db97b670f5f",
+          "README.md": "9af876f0d59ce047c841db82dbce31e5adcefef799b671fdec8cf881784760bf",
+          "docs/PROJECT_STATUS.md": "2f9e5663675b2060cefb815c7186e1466e2e161d222f7085de29609decde2184"
+        },
+        "fixture_sha256": {
+          "evaluation-input\\vehicle-demo\\ASSET_NOTE.txt": "6b43f36e01cd2748ebec20ca6de328a1b782c296545b79ec06295331a57e2f0d",
+          "evaluation-input\\vehicle-demo\\car.gd": "6a05bb4c05b6d25172b15d6c3e0a6f9724735a53cc64064182b0602eced549aa",
+          "evaluation-input\\vehicle-demo\\demo_net.gd": "757f34e8745f2aa7102ea4266493ffcb9a77422939b9dc664bebffa90d5467dc",
+          "evaluation-input\\vehicle-demo\\project.godot": "e8c70d345aba45ec7efd280681472697222e469311bb61d569e39ec91f4e4b3c",
+          "evaluation-input\\vehicle-demo\\native\\vehicle.gdextension": "55e2f3e55b08f05def4e700068bdcd334a481d979ed90e49c45aeb4197077b03",
+          "evaluation-input\\vehicle-demo\\addons\\vehicle_tools\\plugin.cfg": "0a0c5de1647d3761d360c148dc14e7ec7f3a176e4938a7b9967012591974af1c"
+        }
+      },
+      "without-skill": {
+        "head": "a5422e7312d5c97db903fe2e7c712bae4fc08803",
+        "status": "?? evaluation-input/\n",
+        "tracked_count": 204,
+        "tracked_manifest_sha256": "2031abc02732afa524e832481edfb062379e7f60cd5fde7b58889ac6fd87e7d6",
+        "entry_docs": {
+          "AGENTS.md": "4b6189160ecc5a7eb0f5f1b2a361c5571aa802af3bbfc162a8b84db97b670f5f",
+          "README.md": "9af876f0d59ce047c841db82dbce31e5adcefef799b671fdec8cf881784760bf",
+          "docs/PROJECT_STATUS.md": "2f9e5663675b2060cefb815c7186e1466e2e161d222f7085de29609decde2184"
+        },
+        "fixture_sha256": {
+          "evaluation-input\\vehicle-demo\\ASSET_NOTE.txt": "6b43f36e01cd2748ebec20ca6de328a1b782c296545b79ec06295331a57e2f0d",
+          "evaluation-input\\vehicle-demo\\car.gd": "6a05bb4c05b6d25172b15d6c3e0a6f9724735a53cc64064182b0602eced549aa",
+          "evaluation-input\\vehicle-demo\\demo_net.gd": "757f34e8745f2aa7102ea4266493ffcb9a77422939b9dc664bebffa90d5467dc",
+          "evaluation-input\\vehicle-demo\\project.godot": "e8c70d345aba45ec7efd280681472697222e469311bb61d569e39ec91f4e4b3c",
+          "evaluation-input\\vehicle-demo\\native\\vehicle.gdextension": "55e2f3e55b08f05def4e700068bdcd334a481d979ed90e49c45aeb4197077b03",
+          "evaluation-input\\vehicle-demo\\addons\\vehicle_tools\\plugin.cfg": "0a0c5de1647d3761d360c148dc14e7ec7f3a176e4938a7b9967012591974af1c"
+        }
+      }
+    }
+  },
+  "publication_redaction": {
+    "removed_fields": [
+      "runs[].thread_id",
+      "runs[].session_file"
+    ],
+    "preserved": "Run names, recorded model/configuration, prompt and file hashes, observed discovery/injection/read evidence, command summaries, results. Full pre-publication evidence retained locally, not committed."
+  }
+}

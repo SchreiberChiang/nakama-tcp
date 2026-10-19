@@ -1,0 +1,62 @@
+{
+  "local_reference_count": 11,
+  "local_references": [
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\SKILL.md",
+      "target": "../../../docs/PROJECT_STATUS.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\SKILL.md",
+      "target": "../../../docs/PROTOCOL.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\SKILL.md",
+      "target": "../../../docs/ADDING_GAME.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\SKILL.md",
+      "target": "references/source-map.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\SKILL.md",
+      "target": "references/design-and-assets.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\references\\source-map.md",
+      "target": "../../../../docs/PROJECT_STATUS.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\references\\source-map.md",
+      "target": "../../../../docs/PROTOCOL.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\references\\source-map.md",
+      "target": "../../../../docs/ADDING_GAME.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\references\\source-map.md",
+      "target": "../../../../docs/THIRD_PARTY.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\references\\source-map.md",
+      "target": "../../../../platform/wechat/README.md",
+      "exists": true
+    },
+    {
+      "source": ".agents\\skills\\nakama-project-advisor\\references\\source-map.md",
+      "target": "../../../../docs/VALIDATION.md",
+      "exists": true
+    }
+  ],
+  "ui_metadata_parsed": true,
+  "implicit_enabled": true
+}
