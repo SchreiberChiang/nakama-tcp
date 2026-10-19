@@ -1,7 +1,10 @@
 // Cross-platform acceptance client unit tests. Godot only: no backend, sockets or ports.
 // Uses checkedGodot's owned profile so the default player configuration is never written.
 // Simulated touch and lifecycle notifications are not WeChat, iPhone or network evidence.
+import { execFileSync } from "node:child_process";
 import { checkedGodot } from "../scripts/test-profile.mjs";
+
+execFileSync(process.execPath, ["--test", "platform/wechat/test-acceptance-lifecycle.mjs", "platform/wechat/test-safearea.mjs"], { stdio: "inherit" });
 
 if (!process.env.GODOT) throw Error("Set GODOT to Godot 4.7.2 executable.");
 const output = await checkedGodot(
@@ -10,7 +13,7 @@ const output = await checkedGodot(
 );
 if (/PRIVATE_/.test(output)) throw Error("Cross-platform client output leaked a private sentinel.");
 // Exact count: a script error aborts a test function and would otherwise drop checks silently.
-const EXPECTED_CHECKS = 133;
+const EXPECTED_CHECKS = 147;
 if (!output.includes(`CROSS_PLATFORM_CHECKS ${EXPECTED_CHECKS} FAILURES 0`))
   throw Error(`Cross-platform client must report exactly ${EXPECTED_CHECKS} passing checks.`);
 console.log(output);

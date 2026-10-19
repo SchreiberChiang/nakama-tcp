@@ -14,6 +14,7 @@ var view_provider := Callable()
 var label: Label
 var scroll: ScrollContainer
 var close_button: Button
+var geometry_note: Label
 var tabs: Array[Button] = []
 const PAGES := ["概览", "收发", "服务端", "命令"]
 const EVENT_NAMES := {"send_attempt": "发送尝试", "send_completed": "发送完成", "snapshot_received": "收到快照", "snapshot_consumed": "消费快照"}
@@ -44,9 +45,10 @@ func _ready() -> void:
 	close_button.pressed.connect(hide)
 	header.add_child(close_button)
 	var note := Label.new()
+	geometry_note = note
 	note.text = "只读，不暂停游戏 · 缺测≠0"
 	note.add_theme_font_size_override("font_size", 22)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
 	body.add_child(note)
 	var navigation := HBoxContainer.new()
 	navigation.add_theme_constant_override("separation", 8)
@@ -63,6 +65,7 @@ func _ready() -> void:
 		tabs.append(button)
 	scroll = ScrollContainer.new()
 	scroll.name = "DiagnosticScroll"
+	scroll.custom_minimum_size.y = 44
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(scroll)
@@ -74,6 +77,9 @@ func _ready() -> void:
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(label)
 	set_observations({}, "", {}, {}, [])
+
+func set_geometry_status(status: String) -> void:
+	geometry_note.text = "只读，不暂停游戏 · 缺测≠0" + ("\n安全区：保守交集" if status == "conservative" else "")
 
 func setup(session_node: Node, current_view: Callable) -> void:
 	session = session_node

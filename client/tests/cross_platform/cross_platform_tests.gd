@@ -12,6 +12,12 @@ const SETTINGS := ["enabled", "host", "port", "tls", "allow_insecure_lan", "diag
 var checks := 0
 var failures := 0
 
+class FakeGeometryInterface:
+	var calls := 0
+	func geometryJSON() -> String:
+		calls += 1
+		return JSON.stringify({"status": "known", "x": 0.04, "y": 0.04, "width": 0.92, "height": 0.90})
+
 class FakeBridgeInterface:
 	var subscribed: Array = []
 	var unsubscribed: Array = []
@@ -84,8 +90,71 @@ func _run() -> void:
 	await _test_guide_layout()
 	await _test_diagnostics_geometry()
 	await _test_diagnostics_input_routing()
+	await _test_safearea_layout()
 	print("CROSS_PLATFORM_CHECKS %d FAILURES %d" % [checks, failures])
 	quit(1 if failures else 0)
+
+func _test_safearea_layout() -> void:
+	var holder := Control.new()
+	holder.size = Vector2(1409, 648)
+	root.add_child(holder)
+	var entry: Control = load("res://tests/cross_platform/entry.tscn").instantiate()
+	holder.add_child(entry)
+	await process_frame
+	entry.geometry_override = {"status": "conservative", "x": 0.07, "y": 0.08, "width": 0.81, "height": 0.82}
+	entry._toggle_diagnostics()
+	for frame in range(4):
+		await process_frame
+	var safe := Rect2(Vector2(1409 * 0.07, 648 * 0.08), Vector2(1409 * 0.81, 648 * 0.82))
+	var panel: Control = entry.diagnostics_panel
+	check(panel.visible and safe.encloses(panel.get_global_rect()), "conservative safe area scales with logical viewport and bounds the whole card")
+	check(safe.encloses(panel.close_button.get_global_rect()) and panel.tabs.all(func(button): return safe.encloses(button.get_global_rect())), "conservative status note leaves Close and all tabs in the effective safe area")
+	panel.set_observations(diagnostic_payload()[0], "PRIVATE_UID", {}, {}, [])
+	panel.select_page("服务端")
+	await process_frame
+	check(panel.get_global_rect().encloses(panel.scroll.get_global_rect()) and panel.label.size.y > panel.scroll.size.y, "long server page scrolls internally inside the safe-area card")
+	entry.geometry_override = {"status": "unknown"}
+	entry._layout_header()
+	check(not panel.visible and entry._diagnostics_requested, "unknown observation suppresses stale geometry while retaining explicit open request")
+	entry._sync_diagnostic_controls()
+	check(entry._diagnostics_requested, "snapshot/join input synchronization cannot cancel a geometry-suppressed open request")
+	entry.geometry_override = {"status": "known", "x": 0.02, "y": 0.04, "width": 0.90, "height": 0.90}
+	entry._layout_header()
+	for frame in range(3):
+		await process_frame
+	check(panel.visible and panel.position.x >= 1409 * 0.02 and panel.get_global_rect().end.y <= 648 * 0.94, "fresh known observation restores requested diagnostics without using the old rectangle")
+	panel.close_button.pressed.emit()
+	check(not entry._diagnostics_requested and not panel.visible, "explicit Close cancels the request after geometry recovery")
+	entry.geometry_override = {"status": "known", "x": NAN, "y": 0, "width": 1, "height": 1}
+	entry._toggle_diagnostics()
+	check(not panel.visible and entry.geometry_status == "unknown", "nonfinite bridge observation is unknown rather than a full-screen safe fallback")
+	entry.geometry_override = {"status": "known", "x": 0, "y": 0, "width": 0.1, "height": 0.1}
+	entry._layout_header()
+	check(not panel.visible and entry._diagnostics_requested, "too-small effective area does not overflow the external frame")
+	entry.geometry_override = {"status": "known", "x": 0, "y": 0.2, "width": 1, "height": 0.46}
+	entry._layout_header()
+	for frame in range(4):
+		await process_frame
+	entry.geometry_override.status = "conservative"
+	entry._layout_header()
+	for frame in range(4):
+		await process_frame
+	check(not panel.visible or panel.get_global_rect().end.y <= 648 * 0.66, "known to conservative at tight height settles without note-driven external overflow")
+	entry._diagnostics_requested = false
+	entry.geometry_override = null
+	var geometry := FakeGeometryInterface.new()
+	entry._geometry_interface = geometry
+	entry._layout_header()
+	check(geometry.calls == 0, "closed diagnostics does not query platform geometry")
+	entry._toggle_diagnostics()
+	for frame in range(3):
+		await process_frame
+	check(panel.visible and geometry.calls >= 1, "explicit open queries current platform geometry immediately")
+	var queried := geometry.calls
+	entry._toggle_diagnostics()
+	check(not panel.visible and geometry.calls == queried, "toggle closes the platform panel without another geometry query")
+	holder.queue_free()
+	await process_frame
 
 func diagnostic_payload() -> Array:
 	var maximum := 9007199254740991
@@ -177,11 +246,18 @@ func _test_diagnostics_input_routing() -> void:
 	root.push_input(drag(91, at + Vector2(0, 12)), true)
 	root.push_input(touch(91, at, false), true)
 	check(covered_direction == Vector2.ZERO and view.pad.direction() == Vector2.ZERO and not view.pad.is_processing_input() and session._seq == before_seq and session.input_provider.is_valid(), "opening diagnostics clears held touch and intercepts overlay touches/Pulse release without pausing the provider")
+	entry.geometry_override = {"status": "unknown"}
+	entry._layout_header()
 	session.snapshot.round_id = 2
 	session.snapshot.tick = 2
 	session.snapshot_received.emit(session.snapshot)
 	await process_frame
 	var new_view: Control = entry.main.module_view
+	check(entry._diagnostics_requested and not entry.diagnostics_panel.visible, "unknown geometry keeps open request through snapshot and view replacement")
+	entry.geometry_override = {"status": "known", "x": 0.04, "y": 0.02, "width": 0.92, "height": 0.92}
+	entry._layout_header()
+	for frame in range(3):
+		await process_frame
 	check(new_view != view and not new_view.pad.is_processing_input() and new_view.pulse_button.disabled, "new playing view inherits open diagnostics input protection")
 	var close_at: Vector2 = entry.diagnostics_panel.close_button.get_global_rect().get_center()
 	root.push_input(mouse(close_at, true), true)

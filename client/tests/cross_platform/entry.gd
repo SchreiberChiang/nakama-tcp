@@ -18,8 +18,16 @@ var top_bar: PanelContainer
 var registration_conflict := false
 var _owns_registration := false
 var _session_node: Node = null
+var _geometry_interface: Variant = null
+var _geometry_elapsed := 0.0
+var _diagnostics_requested := false
+var _applying_geometry := false
+var geometry_status := "native"
+var geometry_override: Variant = null # Synthetic normalized observations for tests.
 
 func _ready() -> void:
+	if OS.has_feature("web"):
+		_geometry_interface = JavaScriptBridge.get_interface("FoundationAcceptance")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	resized.connect(_layout_header)
 	if ModuleRegistry.modules.has("fixture"):
@@ -103,7 +111,7 @@ func _build_top_bar(session: Node) -> void:
 	row.add_child(bar)
 	_bar_button(bar, "SimulateBackground", "模拟后台", func(): lifecycle.enter_background("simulated"))
 	_bar_button(bar, "SimulateForeground", "模拟返回前台", func(): lifecycle.return_foreground("simulated"))
-	_bar_button(bar, "ToggleDiagnostics", "诊断", func(): diagnostics_panel.visible = not diagnostics_panel.visible)
+	_bar_button(bar, "ToggleDiagnostics", "诊断", _toggle_diagnostics)
 	top_bar.minimum_size_changed.connect(_layout_header)
 	top_bar.resized.connect(_layout_header)
 
@@ -130,7 +138,8 @@ func _build_diagnostics(session: Node) -> void:
 	layer.add_child(diagnostics_panel)
 	diagnostics_panel.setup(session, current_view)
 	diagnostics_panel.visible = false
-	diagnostics_panel.visibility_changed.connect(_sync_diagnostic_controls)
+	diagnostics_panel.visibility_changed.connect(_on_diagnostics_visibility)
+	diagnostics_panel.minimum_size_changed.connect(func(): _layout_header.call_deferred())
 
 func _bar_button(parent: Control, id: String, text: String, callback: Callable) -> Button:
 	var button := Button.new()
@@ -149,9 +158,64 @@ func _layout_header() -> void:
 	top_bar.offset_bottom = height
 	main.offset_top = height
 	if is_instance_valid(diagnostics_panel):
-		var width := minf(1060.0, maxf(0.0, size.x - 24.0))
-		diagnostics_panel.position = Vector2((size.x - width) * 0.5, height + 8)
-		diagnostics_panel.size = Vector2(width, maxf(0.0, size.y - height - 20.0))
+		_layout_diagnostics(height)
+
+func _toggle_diagnostics() -> void:
+	_diagnostics_requested = not _diagnostics_requested
+	_layout_header()
+
+func _process(delta: float) -> void:
+	if not _diagnostics_requested or _geometry_interface == null:
+		return
+	_geometry_elapsed += delta
+	if _geometry_elapsed >= 0.25:
+		_geometry_elapsed = 0.0
+		_layout_header()
+
+## CSS pixels are normalized to the actual rendered canvas by the bridge, then
+## scaled with this logical viewport. No assumed device-pixel ratio.
+func _layout_diagnostics(header_height: float) -> void:
+	if _geometry_interface != null and not _diagnostics_requested and geometry_override == null:
+		_applying_geometry = true
+		diagnostics_panel.hide()
+		_sync_diagnostic_controls()
+		_applying_geometry = false
+		return
+	var observed: Variant = geometry_override
+	if observed == null and _geometry_interface != null:
+		observed = JSON.parse_string(str(_geometry_interface.geometryJSON()))
+	var usable := Rect2(Vector2.ZERO, size)
+	geometry_status = "native"
+	if observed != null or OS.has_feature("web"):
+		geometry_status = "unknown"
+		if observed is Dictionary and observed.get("status") in ["known", "conservative"]:
+			var valid := true
+			for key in ["x", "y", "width", "height"]:
+				var value: Variant = observed.get(key)
+				valid = valid and (value is int or value is float) and is_finite(float(value))
+			if valid and observed.x >= 0 and observed.y >= 0 and observed.width > 0 and observed.height > 0 and observed.x + observed.width <= 1.000001 and observed.y + observed.height <= 1.000001:
+				usable = Rect2(Vector2(observed.x, observed.y) * size, Vector2(observed.width, observed.height) * size)
+				geometry_status = observed.status
+		if geometry_status == "unknown":
+			usable = Rect2()
+	var start := maxf(usable.position.y, header_height + 8.0)
+	usable = Rect2(Vector2(usable.position.x, start), Vector2(usable.size.x, maxf(0.0, usable.end.y - start)))
+	var width := minf(1060.0, maxf(0.0, usable.size.x - 24.0))
+	var height := maxf(0.0, usable.size.y - 12.0)
+	diagnostics_panel.set_geometry_status(geometry_status)
+	diagnostics_panel.position = Vector2(usable.position.x + (usable.size.x - width) * 0.5, usable.position.y)
+	diagnostics_panel.size = Vector2(width, height)
+	var fits := width >= diagnostics_panel.get_combined_minimum_size().x and height >= diagnostics_panel.get_combined_minimum_size().y
+	_applying_geometry = true
+	diagnostics_panel.visible = _diagnostics_requested and fits
+	_applying_geometry = false
+	var toggle := find_child("ToggleDiagnostics", true, false) as Button
+	if toggle != null:
+		toggle.text = "诊断缺测" if geometry_status == "unknown" else ("诊断不足" if not fits else "诊断")
+		toggle.tooltip_text = "安全区缺测" if geometry_status == "unknown" else ("安全区域不足以容纳诊断" if not fits else "")
+	_applying_geometry = true
+	_sync_diagnostic_controls()
+	_applying_geometry = false
 
 ## Test packages preset host/port/TLS/key, so the login page hides those fields;
 ## Main still reads their (preset) values when the visible Login button is used.
@@ -171,6 +235,13 @@ func _on_logged_out() -> void:
 ## The pad handles _input before GUI dispatch; an overlay's mouse_filter alone
 ## cannot protect scrolling. Only covered test controls stop taking new presses;
 ## Session, keyboard input and the authoritative round keep running.
+func _on_diagnostics_visibility() -> void:
+	if not _applying_geometry:
+		_diagnostics_requested = diagnostics_panel.visible
+		if _diagnostics_requested:
+			_layout_header.call_deferred()
+	_sync_diagnostic_controls()
+
 func _sync_diagnostic_controls(_snapshot: Variant = null) -> void:
 	var view: Variant = current_view()
 	if not is_instance_valid(view) or not is_instance_valid(diagnostics_panel):
@@ -186,6 +257,7 @@ func current_view() -> Variant:
 	return main.module_view if is_instance_valid(main) and is_instance_valid(main.module_view) else null
 
 func _exit_tree() -> void:
+	_geometry_interface = null
 	if is_instance_valid(_session_node) and _session_node.logged_out.is_connected(_on_logged_out):
 		_session_node.logged_out.disconnect(_on_logged_out)
 	if is_instance_valid(_session_node):
