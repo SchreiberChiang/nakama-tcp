@@ -19,6 +19,22 @@ var tabs: Array[Button] = []
 const PAGES := ["概览", "收发", "服务端", "命令"]
 const EVENT_NAMES := {"send_attempt": "发送尝试", "send_completed": "发送完成", "snapshot_received": "收到快照", "snapshot_consumed": "消费快照"}
 const COUNTER_NAMES := {"received": "收到", "accepted": "接受", "consumed": "消费", "sent": "发送", "coalesced": "合并", "rate_dropped": "限流丢弃", "late": "过旧", "future": "超前", "not_playing": "非对局阶段", "round": "轮次不符", "dup": "重复", "queue_full": "队列已满", "state_timeout": "持续输入超时", "command_expired": "命令过期", "module_request_error": "模块请求错误"}
+const PHASE_NAMES := {"lobby": "在房间中，等待准备和开始", "countdown": "在房间中，即将开始对局", "playing": "正在对局", "results": "已进入结算"}
+const BUFFER_NAMES := {
+	"empty": "还没有可用于显示的服务器画面数据。",
+	"buffering": "正在积攒后续数据，暂显示已有的最早画面。",
+	"interpolating": "用已收到的前后两份数据平滑显示画面。",
+	"extrapolating": "后续数据尚未到达，暂按已有运动趋势显示；这不是服务器确认的位置。",
+	"underrun": "可用的后续数据不足，画面暂时保持；等待新数据。"
+}
+const COMMAND_NAMES := {
+	"applied": "已执行：服务器已消费这条命令", "expired": "已过期：排队后未在期限内执行",
+	"rejected_full": "被拒绝：命令队列已满", "rejected_stale": "被拒绝：输入过旧",
+	"rejected_future": "被拒绝：输入超前", "rejected_not_playing": "被拒绝：当前不在对局中",
+	"rejected_round": "被拒绝：轮次不符", "rejected_old_seq": "被拒绝：序号已旧或重复",
+	"cancelled_round": "已取消：本轮结束时尚未执行", "rejected_rate": "被拒绝：发送过于频繁",
+	"rejected_module_error": "被拒绝：玩法处理请求时发生错误"
+}
 var selected_page := "概览"
 var _page_texts: Dictionary = {}
 var text_updates := 0
@@ -114,11 +130,26 @@ func select_page(page: String) -> void:
 
 ## Fixed grouping and Chinese labels only after the privacy whitelist has run.
 static func page_rows(safe_rows: PackedStringArray) -> Dictionary:
-	var grouped := {"概览": PackedStringArray(), "收发": PackedStringArray(), "服务端": PackedStringArray(), "命令": PackedStringArray(["最多显示最近8条命令；未知不等于失败。"])}
+	var grouped := {
+		"概览": PackedStringArray(["这里只说明观察到的情况，不据此判断网络好坏。详细数字见其他页。"]),
+		"收发": PackedStringArray(["本页是本机观察。发送完成不代表服务器已接受；收到快照是收到服务器的一份房间状态，消费快照是交给画面使用。", "计数为诊断启用或重置后的事件次数；窗口字节为最近最多120次事件的字节合计。均隔/最大为窗口内事件间隔；距今为本机距离上次事件的时间。ms=毫秒，us=微秒。"]),
+		"服务端": PackedStringArray(["服务器报告的本人计数，单位为次。接受表示进入处理流程，消费表示交给玩法执行；合并表示持续输入被较新的输入替换。缺测不等于0。"]),
+		"命令": PackedStringArray(["最多显示最近8条命令；未知不等于失败。", "接受：服务器已收下输入，仍可能等待或被后续处理取消。已执行：服务器已消费命令，具体结果由玩法决定。", "最高接受/消费序号同时包含持续输入和命令，仅是观察到的最高值，非累计确认；不能据此认定每条命令都已执行。"])
+	}
+	var server_seen := false
 	for line in safe_rows:
 		var page := "概览"
+		if line.begins_with("阶段 ") or line.begins_with("本人位置 ") or line.begins_with("快照接收年龄 ") or line.begins_with("呈现 ") or line.begins_with("呈现诊断") or line.begins_with("RTT "):
+			page = "收发"
+		if line.begins_with("最高 accepted "):
+			page = "命令"
 		line = line.replace("本人位置 ", "本人位置（坐标单位） ").replace(" · 速度 ", " · 速度（坐标单位/秒） ")
 		line = line.replace("最高 accepted ", "最高接受序号 accepted ").replace(" / applied ", "\n最高消费序号 applied ")
+		line = line.replace("阶段 ", "服务器阶段 ").replace(" · tick ", " · 服务器模拟步 tick ")
+		line = line.replace("快照接收年龄 ", "画面最近收到快照距今 ").replace(" · 帧间隔 ", " · 本机画面回调间隔 ").replace(" · 采样 ", " · 本机采样耗时 ")
+		line = line.replace("呈现 ", "画面显示方式 ").replace(" · 欠载 ", " · 数据不足的画面帧数 ").replace(" · 外推 ", " · 按趋势显示的画面帧数 ").replace(" · 旧包 ", " · 丢弃的旧快照数 ").replace(" · 重置 ", " · 显示时间轴重置次数 ")
+		if line.begins_with("RTT "):
+			line = line.replace("RTT 缺测", "RTT 缺测（ms）").replace("服务端消费延迟 缺测", "服务端消费延迟 缺测（ms）").replace("GPU 缺测", "GPU 缺测（ms）")
 		for event in CLIENT_EVENTS:
 			if line.begins_with(event + " "):
 				page = "收发"
@@ -126,6 +157,7 @@ static func page_rows(safe_rows: PackedStringArray) -> Dictionary:
 		if line.begins_with("客户端收发诊断"):
 			page = "收发"
 		if line.begins_with("服务端本人计数 "):
+			server_seen = true
 			for item in line.trim_prefix("服务端本人计数 ").split(" · "):
 				var pieces := item.split(" ", true, 1)
 				if pieces.size() == 2 and COUNTER_NAMES.has(pieces[0]):
@@ -133,9 +165,13 @@ static func page_rows(safe_rows: PackedStringArray) -> Dictionary:
 			continue
 		if line.begins_with("命令 ") or line.begins_with("命令结果"):
 			page = "命令"
+			for status in COMMAND_STATUSES:
+				if line.ends_with(" · " + status):
+					line += "（%s）" % COMMAND_NAMES[status]
 		grouped[page].append(line.replace(" · ", "\n"))
-	if grouped["服务端"].is_empty():
+	if not server_seen or grouped["服务端"].size() == 1:
 		grouped["服务端"].append("服务端诊断缺测或未启用；缺测不等于0。")
+	grouped["收发"].append("缓冲是留待显示的快照份数（帧）及时间跨度（ms）；显示方式的中文含义见概览。RTT、服务端消费延迟和GPU耗时均未测量；本页距今时间不是往返延迟。")
 	var result := {}
 	for page in PAGES:
 		result[page] = "\n\n".join(grouped[page])
@@ -146,6 +182,7 @@ static func rows(snapshot: Variant, own_id: String, client_summary: Variant, pre
 	var out: PackedStringArray = []
 	var state: Dictionary = snapshot if snapshot is Dictionary else {}
 	var phase: Variant = state.get("phase")
+	out.append("当前：%s（以最近收到的房间状态为准）" % PHASE_NAMES.get(phase, MISSING))
 	out.append("阶段 %s · 轮次 %s · tick %s" % [phase if phase in PHASES else MISSING, _int(state.get("round_id")), _int(state.get("tick"))])
 	var own: Dictionary = {}
 	if not own_id.is_empty() and state.get("players") is Array:
@@ -155,6 +192,9 @@ static func rows(snapshot: Variant, own_id: String, client_summary: Variant, pre
 	out.append("本人位置 %s · 速度 %s · 分数 %s" % [_vector(own.get("position")), _vector(own.get("velocity")), _int(own.get("score"))])
 	out.append("最高 accepted %s / applied %s（最高值，非累计确认）" % [_int(own.get("accepted_input_seq")), _int(own.get("applied_input_seq"))])
 	var summary: Dictionary = client_summary if client_summary is Dictionary else {}
+	var received: Dictionary = summary.get("snapshot_received") if summary.get("snapshot_received") is Dictionary else {}
+	var age: Variant = received.get("last_age_ms") if summary.get("enabled") == true else null
+	out.append("最近收到服务器房间消息：距今 %s 毫秒（ms）（本机观测；缺测表示尚无可用记录）" % [_ms(age) if _finite(age) and float(age) >= 0.0 else MISSING])
 	if summary.get("enabled") == true:
 		for event in CLIENT_EVENTS:
 			var item: Dictionary = summary.get(event) if summary.get(event) is Dictionary else {}
@@ -172,10 +212,13 @@ static func rows(snapshot: Variant, own_id: String, client_summary: Variant, pre
 	if shown.get("enabled") == true:
 		var timeline: Dictionary = shown.get("timeline") if shown.get("timeline") is Dictionary else {}
 		var presentation_state: Variant = timeline.get("presentation_state")
+		out.append("画面缓冲：%s" % BUFFER_NAMES.get(presentation_state, MISSING + "，暂时无法说明画面缓冲状态。"))
 		out.append("快照接收年龄 %s ms · 帧间隔 %s ms · 采样 %s us" % [_ms(shown.get("snapshot_receive_age_ms")), _ms(shown.get("frame_callback_interval_ms")), _int(shown.get("sample_cpu_usec"))])
 		out.append("呈现 %s · 缓冲 %s 帧 / %s ms · 欠载 %s · 外推 %s · 旧包 %s · 重置 %s" % [presentation_state if presentation_state in PRESENTATION_STATES else MISSING, _int(timeline.get("buffer_samples")), _ms(timeline.get("buffer_depth_ms")), _int(timeline.get("underrun_frames")), _int(timeline.get("extrapolated_frames")), _int(timeline.get("late_snapshot_drops")), _int(timeline.get("timeline_resets"))])
 	else:
+		out.append("画面缓冲：缺测，未启用呈现诊断或当前不在对局中。")
 		out.append("呈现诊断未启用或不在对局中")
+	out.append("操作反馈：服务器接受输入表示已经收下；已执行表示已经交给玩法执行。每条命令的具体反馈见命令页；没有记录时结果未知。")
 	out.append("RTT %s · 服务端消费延迟 %s · GPU %s" % [MISSING, MISSING, MISSING])
 	var exact: Array = commands if commands is Array else []
 	var listed := 0
