@@ -2,6 +2,8 @@
 
 当前协议v3新增请求回调隔离与选择事务：两端一起升级，旧v2不能混连。范围、运行方法和本轮证据见[REQUEST_ISOLATION](docs/REQUEST_ISOLATION.md)。
 
+微信＋原生电脑阶段已获用户允许收尾；最新诊断包的横屏边界、分页滚动与中文概览获用户真机确认，对局中打开/关闭诊断的触控清理与恢复仍需真机复验。固定版本、证据边界与接入前四步检查见 [阶段收尾](docs/WECHAT_STAGE_CLOSEOUT.md)。
+
 分阶段目标、当前状态、未测项与接续入口见 [PROJECT_STATUS](docs/PROJECT_STATUS.md)。本轮需求逐项验收与证据边界见 [ACCEPTANCE](docs/ACCEPTANCE.md)；时间轴两项审查与独立复验见 [TIMELINE_REVIEW](docs/TIMELINE_REVIEW.md)。
 
 后续交叉复核发现的超时等待及冷缓存导入问题、修复与最终复验见 [INFRA_REVIEW](docs/INFRA_REVIEW.md)。历史“全部验收通过”已补充限定，以最新报告为准。
@@ -78,7 +80,7 @@ node scripts/export.mjs
 
 `export.mjs` 生成 `artifacts/template.pck`，在空目录加载该 **实际 PCK** 并运行登录页，再检查文件清单和场景树。导出排除 `client/tests/`；服务端普通构建也不编译测试模块。PCK 和日志均不入仓库。PCK 是游戏数据包，**不含可独立运行的 Godot 平台可执行文件/WASM**；Web/桌面完整应用导出还需要对应官方 export templates。
 
-已验证与未测范围见 [VALIDATION](docs/VALIDATION.md)。微信旧项目的成功证据不能替代本模板的手机验证，本次未上传微信、未部署腾讯云、未测手机或公网多人。已有微信适配可作为外部导出层复用，详见 [platform/wechat/README.md](platform/wechat/README.md)。
+初始提取阶段的已验证与未测范围见 [VALIDATION](docs/VALIDATION.md)；其中“未上传微信、未部署腾讯云、未测手机或公网多人”仅描述当时版本。后续本阶段已使用授权的隔离云后端和微信开发预览，并取得绑定指定包的用户真机反馈；现状以 [阶段收尾](docs/WECHAT_STAGE_CLOSEOUT.md) 为准。已有微信适配入口见 [platform/wechat/README.md](platform/wechat/README.md)。
 
 ## 许可与来源
 
