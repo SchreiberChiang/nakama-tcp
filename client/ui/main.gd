@@ -25,13 +25,21 @@ var _rooms_body: VBoxContainer
 var _draft_name := "新房间"
 var _draft_capacity := 4
 var _draft_module := ""
+var _margin: MarginContainer
+var _header: HBoxContainer
+## Readable single column on wide screens; the playing page may use more width.
+const COLUMN_WIDTH := 760.0
+const PLAYING_COLUMN_WIDTH := 1120.0
+const PHASE_NAMES := {"lobby": "准备中", "countdown": "倒计时", "playing": "对局中", "results": "结算"}
+const TEXT := Color(0.90, 0.92, 0.95)
+const MUTED := Color(0.60, 0.65, 0.72)
+const ACCENT := Color(0.30, 0.55, 1.0)
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
-	var font := load("res://assets/fonts/TemplateCJK.otf") as Font
-	if font != null:
-		add_theme_font_override("font", font)
-	add_theme_font_size_override("font_size", 22)
+	# Theme values reach every child; local Control overrides do not.
+	theme = _build_theme(load("res://assets/fonts/TemplateCJK.otf") as Font)
+	resized.connect(_apply_margins)
 	Session.authenticated.connect(_show_lobby)
 	Session.logged_out.connect(_show_login)
 	Session.left.connect(_show_lobby)
@@ -43,17 +51,92 @@ func _ready() -> void:
 	Session.snapshot_received.connect(_on_snapshot)
 	Session.notice.connect(func(message, _error):
 		_notice_text = message
-		if is_instance_valid(status): status.text = message)
+		if is_instance_valid(status):
+			status.text = message
+			status.visible = not message.is_empty())
 	_show_login()
 
-func _button(id: String, text: String, callback: Callable) -> Button:
+static func _box(color: Color, border_color: Color = Color(0, 0, 0, 0), border: int = 0) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = color
+	box.border_color = border_color
+	box.set_border_width_all(border)
+	box.set_corner_radius_all(10)
+	box.content_margin_left = 16
+	box.content_margin_right = 16
+	box.content_margin_top = 8
+	box.content_margin_bottom = 8
+	return box
+
+## Plain 2D theme: no textures, only flat colours, so exports stay asset-free.
+static func _build_theme(font: Font) -> Theme:
+	var result := Theme.new()
+	if font != null:
+		result.default_font = font
+	result.default_font_size = 20
+	result.set_color("font_color", "Label", TEXT)
+	for type in ["Button", "CheckBox"]:
+		result.set_color("font_color", type, TEXT)
+		result.set_color("font_hover_color", type, Color.WHITE)
+		result.set_color("font_pressed_color", type, Color.WHITE)
+		result.set_color("font_focus_color", type, Color.WHITE)
+		result.set_color("font_disabled_color", type, MUTED * Color(1, 1, 1, 0.7))
+	result.set_stylebox("normal", "Button", _box(Color(0.17, 0.21, 0.28), Color(0.25, 0.30, 0.39), 1))
+	result.set_stylebox("hover", "Button", _box(Color(0.21, 0.26, 0.35), Color(0.33, 0.40, 0.52), 1))
+	result.set_stylebox("pressed", "Button", _box(Color(0.14, 0.18, 0.24), ACCENT, 1))
+	result.set_stylebox("disabled", "Button", _box(Color(0.12, 0.14, 0.18), Color(0.17, 0.20, 0.25), 1))
+	var focus := _box(Color(0, 0, 0, 0), ACCENT, 2)
+	focus.draw_center = false
+	result.set_stylebox("focus", "Button", focus)
+	result.set_type_variation("PrimaryButton", "Button")
+	result.set_stylebox("normal", "PrimaryButton", _box(ACCENT * Color(0.85, 0.85, 0.85)))
+	result.set_stylebox("hover", "PrimaryButton", _box(ACCENT))
+	result.set_stylebox("pressed", "PrimaryButton", _box(ACCENT * Color(0.7, 0.7, 0.7)))
+	result.set_stylebox("disabled", "PrimaryButton", _box(Color(0.15, 0.20, 0.30)))
+	result.set_stylebox("normal", "LineEdit", _box(Color(0.07, 0.09, 0.13), Color(0.22, 0.27, 0.35), 1))
+	result.set_stylebox("focus", "LineEdit", focus)
+	result.set_stylebox("read_only", "LineEdit", _box(Color(0.10, 0.12, 0.16)))
+	result.set_color("font_color", "LineEdit", TEXT)
+	result.set_color("font_placeholder_color", "LineEdit", MUTED)
+	result.set_color("caret_color", "LineEdit", ACCENT)
+	result.set_stylebox("panel", "PanelContainer", _box(Color(0.11, 0.14, 0.19), Color(0.20, 0.25, 0.32), 1))
+	return result
+
+func _apply_margins() -> void:
+	if not is_instance_valid(_margin):
+		return
+	var column := PLAYING_COLUMN_WIDTH if page == "playing" else COLUMN_WIDTH
+	var side := maxf(24.0, floor((size.x - column) * 0.5))
+	_margin.add_theme_constant_override("margin_left", int(side))
+	_margin.add_theme_constant_override("margin_right", int(side))
+
+func _button(id: String, text: String, callback: Callable, primary: bool = false) -> Button:
 	var button := Button.new()
 	button.name = id
 	button.text = text
-	button.custom_minimum_size.y = 44
+	button.custom_minimum_size.y = 48
+	if primary:
+		button.theme_type_variation = "PrimaryButton"
 	button.pressed.connect(callback)
 	body.add_child(button)
 	return button
+
+## Secondary page actions share the title row instead of a full-width line.
+func _header_button(id: String, text: String, callback: Callable) -> Button:
+	var button := Button.new()
+	button.name = id
+	button.text = text
+	button.custom_minimum_size = Vector2(132, 44)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.pressed.connect(callback)
+	_header.add_child(button)
+	return button
+
+func _caption(text: String) -> Label:
+	var caption := _label(text)
+	caption.add_theme_font_size_override("font_size", 16)
+	caption.add_theme_color_override("font_color", MUTED)
+	return caption
 
 func _label(text: String) -> Label:
 	var label := Label.new()
@@ -87,18 +170,32 @@ func _reset(next_page: String, title: String) -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
+		margin.add_theme_constant_override("margin_" + side, 20)
 	add_child(margin)
+	_margin = margin
+	_apply_margins()
 	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	margin.add_child(scroll)
 	body = VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 10)
+	body.add_theme_constant_override("separation", 12)
 	scroll.add_child(body)
-	var heading := _label(title)
-	heading.add_theme_font_size_override("font_size", 30)
+	_header = HBoxContainer.new()
+	_header.name = "Header"
+	_header.add_theme_constant_override("separation", 12)
+	body.add_child(_header)
+	var heading := Label.new()
+	heading.text = title
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heading.add_theme_font_size_override("font_size", 28)
+	_header.add_child(heading)
 	status = _label(_notice_text)
 	status.name = "Status"
+	status.add_theme_font_size_override("font_size", 16)
+	status.add_theme_color_override("font_color", MUTED)
+	status.visible = not _notice_text.is_empty()
 
 func _show_login() -> void:
 	_draft_name = "新房间"
@@ -127,8 +224,8 @@ func _show_login() -> void:
 		Session.port = int(_port.value)
 		Session.tls = _tls.button_pressed
 		Session.server_key = _key.text
-		Session.login(_name.text))
-	_label("设备身份和昵称仅保存在当前本地 profile；不保存密码、令牌或 server key。")
+		Session.login(_name.text), true)
+	_caption("设备身份和昵称仅保存在当前本地 profile；不保存密码、令牌或 server key。")
 	_button("Quit", "退出", _request_exit)
 
 func _show_lobby() -> void:
@@ -141,7 +238,8 @@ func _show_lobby() -> void:
 			_draft_module = str(_available[_modules.selected].id)
 	_page_key = ""
 	_reset("lobby", "大厅")
-	_button("Logout", "注销", Session.logout)
+	_header_button("Logout", "注销", Session.logout)
+	_caption("房间列表")
 	_button("Refresh", "刷新房间", Session.refresh_rooms)
 	_rooms_body = VBoxContainer.new()
 	_rooms_body.name = "RoomList"
@@ -156,8 +254,10 @@ func _show_lobby() -> void:
 		empty.name = "EmptyState"
 		_label("登录与连接已就绪；没有玩法时不创建房间，也不会加载旧游戏。")
 		return
+	_caption("创建房间")
 	_modules = OptionButton.new()
 	_modules.name = "Modules"
+	_modules.custom_minimum_size.y = 44
 	for entry in _available:
 		_modules.add_item(str(entry.get("title", entry.id)))
 		if str(entry.id) == _draft_module:
@@ -172,7 +272,7 @@ func _show_lobby() -> void:
 	body.add_child(_capacity)
 	_button("Create", "创建房间", func():
 		var entry: Dictionary = _available[_modules.selected]
-		Session.create_room(_room_name.text, str(entry.id), {}, int(_capacity.value)))
+		Session.create_room(_room_name.text, str(entry.id), {}, int(_capacity.value)), true)
 
 func _render_rooms() -> void:
 	if not is_instance_valid(_rooms_body): return
@@ -215,15 +315,15 @@ func _on_snapshot(data: Dictionary) -> void:
 	var key := "%s:%s:%d" % [Session.match_id, phase, int(data.get("round_id", 0))]
 	if key != _page_key:
 		_page_key = key
-		_reset("room" if phase == "lobby" else phase, "房间 · 第 %d 局 · %s" % [int(data.get("round_id", 0)), phase])
-		_button("Leave", "退出房间", Session.leave_room)
+		_reset("room" if phase == "lobby" else phase, "房间 · 第 %d 局 · %s" % [int(data.get("round_id", 0)), PHASE_NAMES.get(phase, phase)])
+		_header_button("Leave", "退出房间", Session.leave_room)
 		members = _label("")
 		members.name = "Members"
 		if phase == "lobby":
-			_ready_button = _button("Ready", "准备 / 取消准备", _toggle_ready)
-			_start_button = _button("Start", "开始", Session.start_round)
+			_ready_button = _button("Ready", "准备 / 取消准备", _toggle_ready, true)
+			_start_button = _button("Start", "开始", Session.start_round, true)
 		elif phase == "countdown":
-			_label("全部准备就绪，服务端倒计时中……")
+			_caption("全部准备就绪，服务端倒计时中……")
 		elif phase == "playing":
 			module_view = ModuleRegistry.create(str(data.get("game_id", "")))
 			if module_view == null:
@@ -237,10 +337,22 @@ func _on_snapshot(data: Dictionary) -> void:
 				if module_view.continuous_input:
 					Session.input_provider = module_view.collect_input
 		elif phase == "results":
-			_label("服务端结算")
+			var card := PanelContainer.new()
+			card.name = "ResultsCard"
+			body.add_child(card)
+			var rows_box := VBoxContainer.new()
+			rows_box.add_theme_constant_override("separation", 6)
+			card.add_child(rows_box)
+			var title := Label.new()
+			title.text = "服务端结算"
+			title.add_theme_color_override("font_color", MUTED)
+			rows_box.add_child(title)
 			for result in data.get("results", []):
-				_label("%s · %s" % [str(result.get("username", "玩家")), str(result.get("score", ""))])
-			_rematch_button = _button("Rematch", "留在房间 / 房主开启下一局", Session.rematch)
+				var row := Label.new()
+				row.text = "%s · %s" % [str(result.get("username", "玩家")), str(result.get("score", ""))]
+				row.add_theme_font_size_override("font_size", 24)
+				rows_box.add_child(row)
+			_rematch_button = _button("Rematch", "留在房间 / 房主开启下一局", Session.rematch, true)
 	var rows: PackedStringArray = []
 	var all_ready := true
 	var connected_count := 0
@@ -249,7 +361,7 @@ func _on_snapshot(data: Dictionary) -> void:
 			continue
 		connected_count += 1
 		all_ready = all_ready and bool(player.get("ready", false))
-		rows.append("%s%s · %s" % [str(player.get("username", "玩家")), " [房主]" if player.get("user_id") == data.get("host_id") else "", "已准备" if player.get("ready", false) else "未准备"])
+		rows.append("%s%s · %s" % [str(player.get("username", "玩家")), "（房主）" if player.get("user_id") == data.get("host_id") else "", "已准备" if player.get("ready", false) else "未准备"])
 	members.text = "\n".join(rows)
 	if is_instance_valid(_start_button):
 		_start_button.disabled = Session.user_id() != data.get("host_id") or not all_ready or connected_count < int(data.get("min_players", 2))

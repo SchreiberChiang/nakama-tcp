@@ -4,6 +4,10 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "
 import path from "node:path";
 import { ownProfile, userDataRoot } from "../scripts/test-profile.mjs";
 import { terminateOwned } from "../scripts/run-with-server.mjs";
+import { networkTarget, acceptanceRounds } from "./network-target.mjs";
+// Validate before creating evidence, profiles or any child process.
+const target = networkTarget();
+const rounds = acceptanceRounds();
 const fixture = process.env.TEST_FIXTURE === "1";
 const gui = process.env.TEST_GUI === "1";
 const diagnostics = process.env.TEST_DIAGNOSTICS === "1";
@@ -53,6 +57,7 @@ async function launch(role) {
       `--evidence=${dir}`,
       `--name=${role}`,
       `--fixture=${fixture}`,
+      ...target.args,
       ...(diagnostics ? ["--diagnostics=true"] : []),
     ]),
     { windowsHide: true },
@@ -291,7 +296,7 @@ try {
     await command(guest, "move", { x: 0, y: 1 });
     await wait(650);
     const movingHost = await command(host), movingGuest = await command(guest);
-    observations.push({ label: "loopback_movement", host: numericObservation(movingHost), guest: numericObservation(movingGuest) });
+    observations.push({ label: target.movementLabel, host: numericObservation(movingHost), guest: numericObservation(movingGuest) });
     check("authoritative continuous movement for two clients", movingHost.own.position.x > 10 && movingGuest.own.position.y > 10);
     check("both clients render two presentation poses", Object.keys(movingHost.presentation).length === 2 && Object.keys(movingGuest.presentation).length === 2);
     check("presentation advances from buffered authority", movingHost.presentation[movingHost.user_id].x > 0 && movingGuest.presentation[movingGuest.user_id].y > 0);
@@ -388,9 +393,38 @@ try {
     await command(host, "move", {x: 1, y: 0});
     await until(host, s => s.own.position.x > 10 && s.score === 0, "second round genuinely moves under new input");
     await command(host, "move", {x: 0, y: 0});
+    if (rounds === 3) {
+      await command(host, "button", {button: "Pulse"});
+      await until(host, s => s.round === 2 && s.score === 1 && s.own.command_results.some(r => r.round_id === 2 && r.status === "applied"), "second round Pulse button scores authoritatively");
+    }
     await until(host, s => s.phase === "results", "second round finishes", 22000);
     await command(host, "button", {button: "Rematch"});
     await until(host, s => s.phase === "lobby" && s.round === 3, "third lobby enables leave and rejoin checks");
+    if (rounds === 3) {
+      await command(host, "button", {button: "Ready"});
+      await command(guest, "button", {button: "Ready"});
+      await until(host, s => s.round === 3 && s.members === 2 && s.snapshot.players.every(p => p.ready), "third round both ready");
+      await wait(250);
+      await command(host, "button", {button: "Start"});
+      await until(host, s => s.phase === "playing" && s.round === 3 && s.active_module, "third round host playing");
+      await until(guest, s => s.phase === "playing" && s.round === 3 && s.active_module, "third round guest playing");
+      const thirdNeutral = await command(host);
+      check("third round resets authority and command outcomes", thirdNeutral.score === 0 && thirdNeutral.own.position.x === 0 && thirdNeutral.own.position.y === 0 && thirdNeutral.own.velocity.x === 0 && thirdNeutral.own.velocity.y === 0 && thirdNeutral.own.command_results.length === 0);
+      await command(host, "move", {x: 1, y: 0});
+      await command(guest, "move", {x: 0, y: 1});
+      await until(host, s => s.round === 3 && s.own.position.x > 10, "third round host moves under authority");
+      await until(guest, s => s.round === 3 && s.own.position.y > 10, "third round guest moves under authority");
+      await command(host, "move", {x: 0, y: 0});
+      await command(guest, "move", {x: 0, y: 0});
+      await until(host, s => s.round === 3 && s.own.velocity.x === 0 && s.own.velocity.y === 0, "third round host release is consumed");
+      await until(guest, s => s.round === 3 && s.own.velocity.x === 0 && s.own.velocity.y === 0, "third round guest release is consumed");
+      const thirdPulse = await command(host, "input");
+      await until(host, s => s.round === 3 && s.score === 1 && s.own.command_results.some(r => r.seq === thirdPulse.last_input_seq && r.round_id === 3 && r.status === "applied"), "third round exact pulse sequence and round applied");
+      await until(host, s => s.phase === "results" && s.round === 3 && s.results === 2 && !s.active_module, "third round host authoritative results", 22000);
+      await until(guest, s => s.phase === "results" && s.round === 3 && s.results === 2 && !s.active_module, "third round guest authoritative results");
+      await command(host, "button", {button: "Rematch"});
+      await until(host, s => s.phase === "lobby" && s.round === 4 && s.members === 2 && !s.ready_self, "fourth lobby retains members for existing cleanup checks");
+    }
     await command(host, "button", { button: "Leave" });
     await until(
       host,
@@ -449,7 +483,7 @@ try {
   }
   writeFileSync(
     path.join(evidence, "result.json"),
-    JSON.stringify({ fixture, diagnostics, fault, checks, audits,
+    JSON.stringify({ fixture, diagnostics, fault, acceptance_rounds_requested: rounds, remote_tls: target.remote, checks, audits,
       observations: observations.map(({label, ...values}) => ({label, ...numericOnly(values)})) }, null, 2),
   );
   if (process.connected) process.disconnect();

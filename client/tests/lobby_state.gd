@@ -71,7 +71,10 @@ func _run() -> void:
 	session.catalog = [{"id": "alpha", "module_version": 1}, {"id": "beta", "module_version": 1}]
 	var ui = load("res://ui/main.gd").new()
 	root.add_child(ui)
+	var bundled_font := load("res://assets/fonts/TemplateCJK.otf") as Font
+	check(ui._name.get_theme_font("font") == bundled_font and ui.status.get_theme_font("font") == bundled_font and ui.find_child("Login", true, false).get_theme_font("font") == bundled_font, "login fields labels and buttons use bundled CJK without system fallback")
 	session.authenticated.emit()
+	check(ui.find_child("RoomName", true, false).get_theme_font("font") == bundled_font and ui.find_child("Create", true, false).get_theme_font("font") == bundled_font, "rebuilt lobby inherits bundled CJK font")
 	ui.find_child("RoomName", true, false).text = "草稿房间"
 	ui.find_child("Capacity", true, false).value = 7
 	ui.find_child("Modules", true, false).select(1)
