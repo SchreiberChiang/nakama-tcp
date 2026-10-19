@@ -113,9 +113,12 @@ func _test_safearea_layout() -> void:
 	panel.select_page("服务端")
 	await process_frame
 	check(panel.get_global_rect().encloses(panel.scroll.get_global_rect()) and panel.label.size.y > panel.scroll.size.y, "long server page scrolls internally inside the safe-area card")
-	entry.geometry_override = {"status": "unknown"}
+	entry.geometry_override = {"status": "unknown", "reason": "canvas_missing"}
 	entry._layout_header()
 	check(not panel.visible and entry._diagnostics_requested, "unknown observation suppresses stale geometry while retaining explicit open request")
+	check(entry.find_child("ToggleDiagnostics", true, false).text == "诊断 C1", "phone-visible fixed code identifies unavailable canvas without raw diagnostic data")
+	check(entry.geometry_failure_message("PRIVATE_PLATFORM_ERROR")[0] == "G0", "unrecognized geometry reason is never rendered verbatim")
+	check(entry.geometry_failure_message({"private": "PRIVATE_VALUE"})[0] == "G0", "non-string geometry reason has a fixed fallback")
 	entry._sync_diagnostic_controls()
 	check(entry._diagnostics_requested, "snapshot/join input synchronization cannot cancel a geometry-suppressed open request")
 	entry.geometry_override = {"status": "known", "x": 0.02, "y": 0.04, "width": 0.90, "height": 0.90}

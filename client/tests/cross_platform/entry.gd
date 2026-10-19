@@ -23,7 +23,24 @@ var _geometry_elapsed := 0.0
 var _diagnostics_requested := false
 var _applying_geometry := false
 var geometry_status := "native"
+var geometry_failure := ""
 var geometry_override: Variant = null # Synthetic normalized observations for tests.
+
+## Fixed public categories only; never display bridge exceptions or arbitrary text.
+const GEOMETRY_FAILURES := {
+	"window_api": ["W1", "微信窗口接口不可用"], "window_fields": ["W2", "微信窗口尺寸不完整"],
+	"window_bounds": ["W3", "微信屏幕与窗口尺寸不一致"], "window_exception": ["W4", "读取微信窗口失败"],
+	"safearea_fields": ["S1", "微信安全区域不完整"], "safearea_bounds": ["S2", "微信安全区域坐标不一致"],
+	"capsule_api": ["M1", "微信胶囊接口不可用"], "capsule_fields": ["M2", "微信胶囊尺寸不完整"],
+	"capsule_bounds": ["M3", "微信胶囊坐标不一致"], "capsule_exception": ["M4", "读取微信胶囊失败"],
+	"canvas_missing": ["C1", "未找到游戏画布"], "canvas_fields": ["C2", "游戏画布尺寸不完整"],
+	"canvas_origin": ["C3", "游戏画布偏移尚未适配"], "canvas_exception": ["C4", "读取游戏画布失败"],
+	"safearea_empty": ["S3", "没有可用的安全区域"], "canvas_empty": ["C5", "安全区域与游戏画布没有交集"],
+	"geometry_exception": ["G1", "读取显示区域失败"]
+}
+
+static func geometry_failure_message(reason: Variant) -> Array:
+	return GEOMETRY_FAILURES.get(reason, ["G0", "未取得有效的平台显示区域"]) if reason is String else ["G0", "未取得有效的平台显示区域"]
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -186,6 +203,7 @@ func _layout_diagnostics(header_height: float) -> void:
 		observed = JSON.parse_string(str(_geometry_interface.geometryJSON()))
 	var usable := Rect2(Vector2.ZERO, size)
 	geometry_status = "native"
+	geometry_failure = ""
 	if observed != null or OS.has_feature("web"):
 		geometry_status = "unknown"
 		if observed is Dictionary and observed.get("status") in ["known", "conservative"]:
@@ -197,6 +215,7 @@ func _layout_diagnostics(header_height: float) -> void:
 				usable = Rect2(Vector2(observed.x, observed.y) * size, Vector2(observed.width, observed.height) * size)
 				geometry_status = observed.status
 		if geometry_status == "unknown":
+			geometry_failure = str(observed.get("reason", "")) if observed is Dictionary else ""
 			usable = Rect2()
 	var start := maxf(usable.position.y, header_height + 8.0)
 	usable = Rect2(Vector2(usable.position.x, start), Vector2(usable.size.x, maxf(0.0, usable.end.y - start)))
@@ -211,8 +230,9 @@ func _layout_diagnostics(header_height: float) -> void:
 	_applying_geometry = false
 	var toggle := find_child("ToggleDiagnostics", true, false) as Button
 	if toggle != null:
-		toggle.text = "诊断缺测" if geometry_status == "unknown" else ("诊断不足" if not fits else "诊断")
-		toggle.tooltip_text = "安全区缺测" if geometry_status == "unknown" else ("安全区域不足以容纳诊断" if not fits else "")
+		var failure := geometry_failure_message(geometry_failure)
+		toggle.text = ("诊断 " + failure[0]) if geometry_status == "unknown" else ("诊断不足" if not fits else "诊断")
+		toggle.tooltip_text = failure[1] if geometry_status == "unknown" else ("安全区域不足以容纳诊断" if not fits else "")
 	_applying_geometry = true
 	_sync_diagnostic_controls()
 	_applying_geometry = false

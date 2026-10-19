@@ -13,7 +13,14 @@ const output = await checkedGodot(
 );
 if (/PRIVATE_/.test(output)) throw Error("Cross-platform client output leaked a private sentinel.");
 // Exact count: a script error aborts a test function and would otherwise drop checks silently.
-const EXPECTED_CHECKS = 147;
+const EXPECTED_CHECKS = 150;
 if (!output.includes(`CROSS_PLATFORM_CHECKS ${EXPECTED_CHECKS} FAILURES 0`))
   throw Error(`Cross-platform client must report exactly ${EXPECTED_CHECKS} passing checks.`);
 console.log(output);
+const plain = await checkedGodot(
+  ["--headless", "--path", "client", "--script", "res://tests/diagnostic_plain_language.gd"],
+  { timeout: 30000, log: ".local/diagnostic-plain-language.log" },
+);
+if (/PRIVATE_/.test(plain) || !plain.includes("DIAGNOSTIC_PLAIN_LANGUAGE: 56 passed, 0 failed"))
+  throw Error("Plain-language diagnostics formatter failed or leaked a sentinel.");
+console.log(plain);
